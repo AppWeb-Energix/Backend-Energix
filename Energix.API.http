@@ -1,0 +1,6 @@
+@Energix.API_HostAddress = http://localhost:5157
+
+GET {{Energix.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
