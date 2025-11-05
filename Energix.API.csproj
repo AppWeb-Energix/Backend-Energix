@@ -10,4 +10,12 @@
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.10"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Include="src\BuildingBlocks\Energix.BuildingBlocks.csproj" />
+      <Content Include="src\DeviceManagement\Infrastructure\Energix.DeviceManagement.Infrastructure.csproj" />
+      <Content Include="src\Identity\Infrastructure\Energix.Identity.Infrastructure.csproj" />
+      <Content Include="src\Notifications\Infrastructure\Energix.Notifications.Infrastructure.csproj" />
+      <Content Include="src\Subscriptions\Infrastructure\Energix.Subscription.Infrastructure.csproj" />
+    </ItemGroup>
+
 </Project>
