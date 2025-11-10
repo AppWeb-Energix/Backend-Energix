@@ -1,12 +1,17 @@
-// csharp
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
+using Energix.API;
+using Energix.API.DeviceManagement.Application.Internal.CommandServices;
+using Energix.API.DeviceManagement.Application.Internal.QueryServices;
+using Energix.API.DeviceManagement.Domain.Repositories;
+using Energix.API.DeviceManagement.Domain.Services;
+using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Repositories;
+using Energix.API.DeviceManagement.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +22,7 @@ builder.Services.AddEndpointsApiExplorer();
 // Controllers
 builder.Services.AddControllers();
 
-// CORS: permite cualquier origen, método y cabecera
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -28,67 +33,53 @@ builder.Services.AddCors(options =>
     });
 });
 
-// DbContext MySQL
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
-              ?? "server=localhost;port=3306;database=energix;user=root;password=tu_password;TreatTinyAsBoolean=true";
+              ?? "server=localhost;port=3306;database=energix;user=root;password=Enca248248+-;TreatTinyAsBoolean=true";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
 
+// Domain Services
+builder.Services.AddScoped<IPlanValidationService, PlanValidationService>();
+builder.Services.AddScoped<IDeviceNamingService, DeviceNamingService>();
+
+// Repositories
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IZoneRepository, ZoneRepository>();
+
+// Application Command Services
+builder.Services.AddScoped<DeviceCommandService>();
+builder.Services.AddScoped<ZoneCommandService>();
+
+// Application Query Services
+builder.Services.AddScoped<DeviceQueryService>();
+builder.Services.AddScoped<ZoneQueryService>();
+
 var app = builder.Build();
 
-// Soporte de cabeceras reenviadas para proxy o balanceador
+// Verificar y crear base de datos si no existe
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var context = services.GetRequiredService<AppDbContext>();
+    context.Database.EnsureCreated();
+}
+
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
-    // Configura KnownProxies o KnownNetworks si es necesario
 });
 
-// Activa CORS
 app.UseCors("AllowAll");
 
-// Swagger solo en Development o protegido por API Key en otros entornos
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi(); // /openapi/v1.json
+    app.MapOpenApi();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/openapi/v1.json", "API v1");
-        c.RoutePrefix = "swagger"; // /swagger
+        c.RoutePrefix = "swagger";
     });
-}
-else
-{
-    // Protege Swagger con API Key si se define Swagger:ApiKey
-    var swaggerKey = builder.Configuration["Swagger:ApiKey"];
-
-    if (!string.IsNullOrEmpty(swaggerKey))
-    {
-        app.UseWhen(
-            ctx => ctx.Request.Path.StartsWithSegments("/swagger") || ctx.Request.Path.StartsWithSegments("/openapi"),
-            branch =>
-            {
-                branch.Use(async (ctx, next) =>
-                {
-                    if (!ctx.Request.Headers.TryGetValue("X-Swagger-Key", out var provided) || provided != swaggerKey)
-                    {
-                        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await ctx.Response.WriteAsync("Unauthorized");
-                        return;
-                    }
-                    await next();
-                });
-            });
-
-        app.MapOpenApi();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/openapi/v1.json", "API v1");
-            c.RoutePrefix = "swagger";
-        });
-    }
-
-    app.UseHsts();
 }
 
 app.UseHttpsRedirection();
