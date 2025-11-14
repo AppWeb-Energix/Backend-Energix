@@ -1,9 +1,9 @@
 ﻿FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 COPY . .
-WORKDIR /src/src/Api
-RUN dotnet restore
-RUN dotnet publish -c Release -o /app/publish
+RUN dotnet restore Energix.API.csproj
+RUN dotnet publish Energix.API.csproj -c Release -o /app/publish
+
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 EXPOSE 8080
