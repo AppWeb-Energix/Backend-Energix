@@ -23,13 +23,11 @@
         <PackageReference Include="MySqlConnector" Version="2.5.0" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-    </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\BuildingBlocks\Energix.BuildingBlocks.csproj" />
-        <ProjectReference Include="..\DeviceManagement\Infrastructure\Energix.DeviceManagement.Infrastructure.csproj" />
-        <ProjectReference Include="..\Identity\Infrastructure\Energix.Identity.Infrastructure.csproj" />
-        <ProjectReference Include="..\Notifications\Infrastructure\Energix.Notifications.Infrastructure.csproj" />
-        <ProjectReference Include="..\Subscriptions\Infrastructure\Energix.Subscription.Infrastructure.csproj" />
+        <!-- JSON Web Token related packages -->
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0"/>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10"/>
+        <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.14.0"/>
     </ItemGroup>
+    
 </Project>
