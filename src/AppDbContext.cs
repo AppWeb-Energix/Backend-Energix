@@ -1,5 +1,7 @@
 using Energix.API.DeviceManagement.Domain.Model.Aggregates;
 using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Configuration.Extensions;
+using Energix.API.Identity.Domain.Entities;
+using Energix.API.Identity.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using Energix.API.Personalization.Domain.Model.Aggregates;
 using Energix.API.Personalization.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +20,9 @@ public class AppDbContext : DbContext
     
     // DbSets - Personalization
     public DbSet<PersonalizationAggregate> Personalizations { get; set; } = null!;
+    
+    // DbSets - Identity
+    public DbSet<User> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -28,5 +33,8 @@ public class AppDbContext : DbContext
         
         // Personalization Configuration
         builder.ApplyPersonalizationConfiguration();
+        
+        // Identity Configuration
+        builder.ApplyIdentityConfiguration();
     }
 }
