@@ -58,6 +58,28 @@ namespace Energix.API.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "personalizations",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    user_id = table.Column<int>(type: "int", nullable: false),
+                    kpi_current = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    kpi_cost = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    kpi_monthly = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    chart_hourly = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    chart_monthly = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
+                    chart_device = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_personalizations", x => x.id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "devices",
                 columns: table => new
                 {
@@ -120,6 +142,12 @@ namespace Energix.API.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_personalizations_user_id",
+                table: "personalizations",
+                column: "user_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "idx_zones_user_id",
                 table: "zones",
                 column: "user_id");
@@ -136,6 +164,9 @@ namespace Energix.API.Migrations
         {
             migrationBuilder.DropTable(
                 name: "devices");
+
+            migrationBuilder.DropTable(
+                name: "personalizations");
 
             migrationBuilder.DropTable(
                 name: "users");
