@@ -1,7 +1,9 @@
 using Energix.API.DeviceManagement.Domain.Model.Aggregates;
-using Energix.API.Identity.Domain.Entities;  // ⬅️ ESTA LÍNEA
 using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Configuration.Extensions;
-using Energix.API.Identity.Infrastructure.Persistence.EFC.Configuration.Extensions;  // ⬅️ ESTA LÍNEA
+using Energix.API.Identity.Domain.Entities;
+using Energix.API.Identity.Infrastructure.Persistence.EFC.Configuration.Extensions;
+using Energix.API.Personalization.Domain.Model.Aggregates;
+using Energix.API.Personalization.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.API;
@@ -16,8 +18,11 @@ public class AppDbContext : DbContext
     public DbSet<Device> Devices { get; set; } = null!;
     public DbSet<Zone> Zones { get; set; } = null!;
     
+    // DbSets - Personalization
+    public DbSet<PersonalizationAggregate> Personalizations { get; set; } = null!;
+    
     // DbSets - Identity
-    public DbSet<User> Users { get; set; } = null!;  // ⬅️ ESTA LÍNEA
+    public DbSet<User> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -26,7 +31,10 @@ public class AppDbContext : DbContext
         // Device Management Configuration
         builder.ApplyDeviceManagementConfiguration();
         
+        // Personalization Configuration
+        builder.ApplyPersonalizationConfiguration();
+        
         // Identity Configuration
-        builder.ApplyIdentityConfiguration();  // ⬅️ ESTA LÍNEA
+        builder.ApplyIdentityConfiguration();
     }
 }

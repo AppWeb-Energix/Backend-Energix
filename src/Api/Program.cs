@@ -11,6 +11,7 @@ using Energix.API.Identity.Infrastructure.Hashing;
 using Energix.API.Identity.Infrastructure.Persistence.Repositories;
 using Energix.API.Identity.Infrastructure.Tokens;
 using Energix.API.Identity.Infrastructure.Authorization.Middleware;
+using Energix.API.Personalization.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,7 +25,7 @@ var configuration = builder.Configuration;
 // Get connection string from configuration (appsettings.json / environment)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
-                  ?? "server=localhost;port=3306;database=energix;user=root;password=lucas1";
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=Password123";
 
 // Use Pomelo or MySql provider. ServerVersion.AutoDetect will try to detect the server version.
 // Make sure the provider package (Pomelo.EntityFrameworkCore.MySql) is installed in the API project.
@@ -99,6 +100,11 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 // Register application services
 builder.Services.AddScoped<IUserCommandService, UserCommandService>();
 builder.Services.AddScoped<IUserQueryService, UserQueryService>();
+
+// --------------------
+// Personalization Bounded Context - Dependency Injection
+// --------------------
+builder.Services.AddPersonalizationServices();
 
 // --------------------
 // Controllers, Swagger, other services
