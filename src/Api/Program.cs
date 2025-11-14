@@ -4,6 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Energix.API;
+using Energix.API.Identity.Application.Services;
+using Energix.API.Identity.Domain.Repositories;
+using Energix.API.Identity.Domain.Services;
+using Energix.API.Identity.Infrastructure.Hashing;
+using Energix.API.Identity.Infrastructure.Persistence.Repositories;
+using Energix.API.Identity.Infrastructure.Tokens;
+using Energix.API.Identity.Infrastructure.Authorization.Middleware;
 using Energix.Subscriptions.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +24,7 @@ var configuration = builder.Configuration;
 // Get connection string from configuration (appsettings.json / environment)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
-                  ?? "server=localhost;port=3306;database=energix;user=root;password=your_password";
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=3xp3ri3nciA*";
 
 // Use Pomelo or MySql provider. ServerVersion.AutoDetect will try to detect the server version.
 // Make sure the provider package (Pomelo.EntityFrameworkCore.MySql) is installed in the API project.
@@ -74,6 +81,24 @@ builder.Services
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
+
+// --------------------
+// Identity Bounded Context - Dependency Injection
+// --------------------
+// Configure TokenSettings from appsettings "Jwt" section
+builder.Services.Configure<TokenSettings>(configuration.GetSection("Jwt"));
+
+// Register repositories
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Register domain services
+builder.Services.AddScoped<IHashingService, HashingService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+// Register application services
+builder.Services.AddScoped<IUserCommandService, UserCommandService>();
+builder.Services.AddScoped<IUserQueryService, UserQueryService>();
 
 // --------------------
 // Controllers, Swagger, other services
@@ -133,6 +158,7 @@ app.UseRouting();
 app.UseCors(DevCorsPolicy);
 
 app.UseAuthentication();
+app.UseUserContext(); // Loads authenticated user into HttpContext.Items
 app.UseAuthorization();
 
 // Map controllers (tu carpeta controllers/auth con LoginController y RegisterController será detectada)
