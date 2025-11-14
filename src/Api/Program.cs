@@ -4,6 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Energix.API;
+using Energix.API.Identity.Application.Services;
+using Energix.API.Identity.Domain.Repositories;
+using Energix.API.Identity.Domain.Services;
+using Energix.API.Identity.Infrastructure.Hashing;
+using Energix.API.Identity.Infrastructure.Persistence.Repositories;
+using Energix.API.Identity.Infrastructure.Tokens;
+using Energix.API.Identity.Infrastructure.Authorization.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,6 +82,24 @@ builder.Services
     });
 
 // --------------------
+// Identity Bounded Context - Dependency Injection
+// --------------------
+// Configure TokenSettings from appsettings "Jwt" section
+builder.Services.Configure<TokenSettings>(configuration.GetSection("Jwt"));
+
+// Register repositories
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Register domain services
+builder.Services.AddScoped<IHashingService, HashingService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+// Register application services
+builder.Services.AddScoped<IUserCommandService, UserCommandService>();
+builder.Services.AddScoped<IUserQueryService, UserQueryService>();
+
+// --------------------
 // Controllers, Swagger, other services
 // --------------------
 builder.Services.AddControllers();
@@ -102,8 +127,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Register other app services here if needed, e.g.:
-// builder.Services.AddScoped<IUserService, UserService>();
 
 var app = builder.Build();
 
@@ -127,6 +150,8 @@ app.UseHttpsRedirection();
 app.UseRouting();
 
 app.UseCors(DevCorsPolicy);
+
+app.UseRequestAuthorization();
 
 app.UseAuthentication();
 app.UseAuthorization();
