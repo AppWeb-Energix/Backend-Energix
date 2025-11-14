@@ -1,19 +1,19 @@
-using Energix.Subscriptions.Infrastructure.Persistance;
+﻿using Energix.Subscriptions.Infrastructure.Persistance;
 using Microsoft.EntityFrameworkCore;
 
-namespace Energix.Subscriptions.Application.Commands.RemovePaymentMethod;
+namespace Energix.Subscriptions.Application.Commands.SetDefaultPaymentMethod;
 
-public class RemovePaymentMethodCommandHandler
+public class SetDefaultPaymentMethodCommandHandler
 {
     private readonly SubscriptionDbContext _context;
 
-    public RemovePaymentMethodCommandHandler(SubscriptionDbContext context)
+    public SetDefaultPaymentMethodCommandHandler(SubscriptionDbContext context)
     {
         _context = context;
     }
 
     public async Task<(bool Success, string Message, List<string> Errors)> HandleAsync(
-        RemovePaymentMethodCommand command,
+        SetDefaultPaymentMethodCommand command,
         CancellationToken cancellationToken = default)
     {
         var errors = new List<string>();
@@ -55,51 +55,40 @@ public class RemovePaymentMethodCommandHandler
                 });
             }
 
-            // Verificar si ya está inactivo
+            // Verificar si está inactivo
             if (!paymentMethod.IsActive)
             {
-                return (false, "Método de pago ya está inactivo", new List<string>
+                return (false, "Método de pago inactivo", new List<string>
                 {
-                    "El método de pago ya fue eliminado anteriormente"
+                    "No se puede establecer como predeterminado un método de pago inactivo"
                 });
             }
 
-            // Verificar si es el último método activo
-            var activeMethodsCount = subscription.PaymentMethods.Count(pm => pm.IsActive);
-            if (activeMethodsCount == 1)
+            // Verificar si ya es el predeterminado
+            if (paymentMethod.IsDefault)
             {
-                return (false, "No se puede eliminar el único método de pago", new List<string>
+                return (false, "Ya es el método predeterminado", new List<string>
                 {
-                    "Debe tener al menos un método de pago activo. Agregue otro antes de eliminar este."
+                    "Este método de pago ya es el predeterminado"
                 });
             }
 
-            // Guardar si era el método predeterminado
-            var wasDefault = paymentMethod.IsDefault;
+            // Desactivar el método predeterminado anterior
+            var currentDefault = subscription.PaymentMethods
+                .FirstOrDefault(pm => pm.IsDefault && pm.IsActive);
 
-            // Desactivar el método de pago
-            subscription.RemovePaymentMethod(command.PaymentMethodId);
-
-            // Si era el predeterminado, asignar otro método activo como predeterminado
-            if (wasDefault)
+            if (currentDefault != null)
             {
-                var newDefaultMethod = subscription.PaymentMethods
-                    .FirstOrDefault(pm => pm.IsActive && pm.Id != command.PaymentMethodId);
-
-                if (newDefaultMethod != null)
-                {
-                    newDefaultMethod.SetAsDefault();
-                }
+                currentDefault.SetAsNonDefault();
             }
+
+            // Establecer el nuevo método como predeterminado
+            paymentMethod.SetAsDefault();
 
             // Guardar cambios
             await _context.SaveChangesAsync(cancellationToken);
 
-            var message = wasDefault
-                ? "Método de pago eliminado. Se asignó un nuevo método predeterminado automáticamente."
-                : "Método de pago eliminado exitosamente";
-
-            return (true, message, new List<string>());
+            return (true, "Método de pago establecido como predeterminado exitosamente", new List<string>());
         }
         catch (Exception ex)
         {

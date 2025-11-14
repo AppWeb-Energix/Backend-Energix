@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Energix.API;
+using Energix.Subscriptions.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -104,6 +105,9 @@ builder.Services.AddSwaggerGen(c =>
 
 // Register other app services here if needed, e.g.:
 // builder.Services.AddScoped<IUserService, UserService>();
+
+// Registrar módulo de Subscriptions
+builder.Services.AddSubscriptionsInfrastructure(configuration);
 
 var app = builder.Build();
 
