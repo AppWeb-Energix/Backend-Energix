@@ -1,6 +1,7 @@
 ﻿using Energix.API.Identity.Domain.Services;
-using Energix.API.Identity.Infrastructure.Authorization.Attributes;
+using Energix.API.Identity.Infrastructure.Authorization.Extensions;
 using Energix.API.Identity.Interfaces.REST.Assemblers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Energix.API.Identity.Interfaces.REST.Controllers;
@@ -39,18 +40,13 @@ public class UsersController : ControllerBase
     /// Get current authenticated user
     /// </summary>
     [HttpGet("me")]
-    public async Task<IActionResult> GetCurrentUser()
+    public IActionResult GetCurrentUser()
     {
-        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                          ?? User.FindFirst("sub")?.Value;
-
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-            return Unauthorized(new { error = "Token inválido" });
-
-        var user = await _userQueryService.GetByIdAsync(userId);
+        // Get user from HttpContext.Items (populated by UserContextMiddleware)
+        var user = HttpContext.GetAuthenticatedUser();
         
         if (user == null)
-            return NotFound(new { error = "Usuario no encontrado" });
+            return Unauthorized(new { error = "Usuario no autenticado o no encontrado" });
 
         var resource = UserResourceAssembler.ToResource(user);
         return Ok(resource);

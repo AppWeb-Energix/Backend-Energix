@@ -1,6 +1,6 @@
 ﻿using Energix.API.Identity.Domain.Services;
-using Energix.API.Identity.Infrastructure.Authorization.Attributes;
 using Energix.API.Identity.Interfaces.REST.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Energix.API.Identity.Interfaces.REST.Controllers;

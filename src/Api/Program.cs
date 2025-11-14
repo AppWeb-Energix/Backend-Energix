@@ -151,9 +151,8 @@ app.UseRouting();
 
 app.UseCors(DevCorsPolicy);
 
-app.UseRequestAuthorization();
-
 app.UseAuthentication();
+app.UseUserContext(); // Loads authenticated user into HttpContext.Items
 app.UseAuthorization();
 
 // Map controllers (tu carpeta controllers/auth con LoginController y RegisterController será detectada)

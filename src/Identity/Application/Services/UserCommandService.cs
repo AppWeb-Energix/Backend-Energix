@@ -95,19 +95,20 @@ public class UserCommandService : IUserCommandService
         if (string.IsNullOrEmpty(user.PasswordHash))
             return (false, "Credenciales inválidas", null, null);
 
+        // Security: Only accept BCrypt hashed passwords
+        // BCrypt hashes always start with "$2a$", "$2b$", "$2x$" or "$2y$"
+        if (!user.PasswordHash.StartsWith("$2"))
+        {
+            // If you need to migrate legacy passwords, create a separate migration endpoint
+            // or a background job that rehashes passwords on first successful login.
+            // DO NOT allow plain text password comparison in production code.
+            return (false, "Formato de contraseña inválido. Contacte al administrador.", null, null);
+        }
+
         bool verified;
         try
         {
-            // Support both BCrypt hashes and plain text (for migration purposes only)
-            if (user.PasswordHash.StartsWith("$2"))
-            {
-                verified = _hashingService.VerifyPassword(password, user.PasswordHash);
-            }
-            else
-            {
-                // Plain text comparison (INSECURE - only for migration/testing)
-                verified = string.Equals(password, user.PasswordHash, StringComparison.Ordinal);
-            }
+            verified = _hashingService.VerifyPassword(password, user.PasswordHash);
         }
         catch
         {
