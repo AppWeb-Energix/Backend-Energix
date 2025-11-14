@@ -1,140 +1,111 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.HttpOverrides;
 using Energix.API;
+using Energix.API.DeviceManagement.Application.Internal.CommandServices;
+using Energix.API.DeviceManagement.Application.Internal.QueryServices;
+using Energix.API.DeviceManagement.Domain.Repositories;
+using Energix.API.DeviceManagement.Domain.Services;
+using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Repositories;
+using Energix.API.DeviceManagement.Infrastructure.Services;
+using Energix.API.Personalization.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuration quick shortcuts
-var configuration = builder.Configuration;
+// OpenAPI y explorador de endpoints
+builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
 
-// --------------------
-// Database (EF Core) - MySQL
-// --------------------
-// Get connection string from configuration (appsettings.json / environment)
-var defaultConn = configuration.GetConnectionString("DefaultConnection")
-                  ?? configuration["ConnectionStrings:DefaultConnection"]
-                  ?? "server=localhost;port=3306;database=energix;user=root;password=your_password";
+// AutoMapper
+builder.Services.AddAutoMapper(cfg => { }, AppDomain.CurrentDomain.GetAssemblies());
 
-// Use Pomelo or MySql provider. ServerVersion.AutoDetect will try to detect the server version.
-// Make sure the provider package (Pomelo.EntityFrameworkCore.MySql) is installed in the API project.
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
-
-// --------------------
-// CORS
-// --------------------
-const string DevCorsPolicy = "AllowDev";
-builder.Services.AddCors(o =>
-{
-    o.AddPolicy(DevCorsPolicy, policy =>
-    {
-        // En desarrollo permitir todo; en producción restringe a los orígenes necesarios.
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
-
-// --------------------
-// Authentication - JWT Bearer
-// --------------------
-// Configuration expects a section "Jwt" with "Key", "Issuer" and "Audience".
-// Example appsettings.json:
-// "Jwt": { "Key": "super-secret-key-change-me", "Issuer": "energix", "Audience": "energix-client", "ExpiresMinutes": "60" }
-var jwtSection = configuration.GetSection("Jwt");
-var jwtKey = jwtSection["Key"] ?? configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? "changeme_replace_with_strong_key";
-var jwtIssuer = jwtSection["Issuer"] ?? configuration["Jwt:Issuer"] ?? "energix";
-var jwtAudience = jwtSection["Audience"] ?? configuration["Jwt:Audience"] ?? "energix-client";
-
-var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-
-builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.RequireHttpsMetadata = false; // en producción true + HTTPS
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = signingKey,
-            ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
-            ValidateAudience = true,
-            ValidAudience = jwtAudience,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30)
-        };
-    });
-
-// --------------------
-// Controllers, Swagger, other services
-// --------------------
+// Controllers
 builder.Services.AddControllers();
 
-// Swagger / OpenAPI with Bearer auth UI
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
+// CORS
+builder.Services.AddCors(options =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Energix API", Version = "v1" });
-
-    // JWT Authorization in Swagger
-    var securityScheme = new OpenApiSecurityScheme
+    options.AddPolicy("AllowAll", policy =>
     {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Ingrese 'Bearer {token}'"
-    };
-    c.AddSecurityDefinition("Bearer", securityScheme);
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        { securityScheme, new[] { "Bearer" } }
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
-// Register other app services here if needed, e.g.:
-// builder.Services.AddScoped<IUserService, UserService>();
+var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
+              ?? "server=localhost;port=3306;database=energix;user=root;password=Password123;TreatTinyAsBoolean=true";
+
+// Usar una versión específica de MySQL en lugar de AutoDetect para evitar conexión en tiempo de configuración
+var serverVersion = new MySqlServerVersion(new Version(8, 0, 21));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(connStr, serverVersion, mysqlOptions =>
+    {
+        mysqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null);
+    }));
+
+// Personalization Services
+builder.Services.AddPersonalizationServices();
+
+// Domain Services
+builder.Services.AddScoped<IPlanValidationService, PlanValidationService>();
+builder.Services.AddScoped<IDeviceNamingService, DeviceNamingService>();
+
+// Repositories
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IZoneRepository, ZoneRepository>();
+
+// Application Command Services
+builder.Services.AddScoped<DeviceCommandService>();
+builder.Services.AddScoped<ZoneCommandService>();
+
+// Application Query Services
+builder.Services.AddScoped<DeviceQueryService>();
+builder.Services.AddScoped<ZoneQueryService>();
 
 var app = builder.Build();
 
-// --------------------
-// Middleware pipeline
-// --------------------
+// Verificar y crear base de datos si no existe (con manejo de errores)
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        var context = services.GetRequiredService<AppDbContext>();
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        
+        logger.LogInformation("Intentando conectar a la base de datos...");
+        context.Database.EnsureCreated();
+        logger.LogInformation("Base de datos conectada exitosamente.");
+    }
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogWarning(ex, "No se pudo conectar a la base de datos. La aplicación continuará ejecutándose, pero las operaciones de base de datos fallarán.");
+}
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+});
+
+app.UseCors("AllowAll");
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
-}
-else
-{
-    app.UseExceptionHandler("/error"); // o custom handler
-    app.UseHsts();
+    app.MapOpenApi();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/openapi/v1.json", "API v1");
+        c.RoutePrefix = "swagger";
+    });
 }
 
 app.UseHttpsRedirection();
 
-app.UseRouting();
-
-app.UseCors(DevCorsPolicy);
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Map controllers (tu carpeta controllers/auth con LoginController y RegisterController será detectada)
 app.MapControllers();
-
-// Optional health/readiness endpoints
-app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();

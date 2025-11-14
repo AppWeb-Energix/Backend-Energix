@@ -7,20 +7,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="BCrypt.Net-Next" Version="4.0.2" />
+        <PackageReference Include="AutoMapper" Version="15.1.0" />
         <PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.10" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-          <PrivateAssets>all</PrivateAssets>
-        </PackageReference>
-        <PackageReference Include="MySqlConnector" Version="2.5.0" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     </ItemGroup>
@@ -30,6 +24,15 @@
         <ProjectReference Include="..\DeviceManagement\Infrastructure\Energix.DeviceManagement.Infrastructure.csproj" />
         <ProjectReference Include="..\Identity\Infrastructure\Energix.Identity.Infrastructure.csproj" />
         <ProjectReference Include="..\Notifications\Infrastructure\Energix.Notifications.Infrastructure.csproj" />
+        <ProjectReference Include="..\Personalization\Infrastructure\Energix.Personalization.Infrastructure.csproj" />
         <ProjectReference Include="..\Subscriptions\Infrastructure\Energix.Subscription.Infrastructure.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="src\Personalization\Infrastructure\Persistence\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="src\Personalization\Infrastructure\Energix.Personalization.Infrastructure.csproj" />
     </ItemGroup>
 </Project>
