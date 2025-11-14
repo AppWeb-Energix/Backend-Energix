@@ -265,7 +265,7 @@ public class SubscriptionsController : ControllerBase
         {
             Message = message,
             UserId = command.UserId,
-            NewPlanType = command.NewPlanType
+            NewPlanType = command.NewPlanType.ToString()
         });
     }
 
@@ -293,8 +293,7 @@ public class SubscriptionsController : ControllerBase
         return Ok(new RenewPlanResponse
         {
             Message = message,
-            UserId = command.UserId,
-            RenewalMonths = command.RenewalMonths
+            UserId = command.UserId
         });
     }
 
@@ -338,7 +337,6 @@ public class RenewPlanResponse
 {
     public string Message { get; set; } = string.Empty;
     public Guid UserId { get; set; }
-    public int RenewalMonths { get; set; }
 }
 
 public class CancelPlanResponse

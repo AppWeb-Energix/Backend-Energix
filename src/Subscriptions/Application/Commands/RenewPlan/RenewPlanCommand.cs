@@ -1,10 +1,11 @@
-﻿namespace Energix.Subscriptions.Application.Commands.RenewPlan;
+﻿﻿namespace Energix.Subscriptions.Application.Commands.RenewPlan;
 
+/// <summary>
+/// Comando para renovar una suscripción expirada o cancelada
+/// </summary>
 public class RenewPlanCommand
 {
     public Guid UserId { get; set; }
-    public string PlanType { get; set; } = string.Empty;
-    public int RenewalMonths { get; set; } = 1;
 }
 
 

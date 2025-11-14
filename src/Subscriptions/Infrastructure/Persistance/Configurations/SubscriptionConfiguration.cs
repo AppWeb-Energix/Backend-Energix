@@ -20,7 +20,13 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
             .IsRequired();
 
         builder.Property(s => s.PlanType)
+            .HasConversion<string>()
             .HasMaxLength(50)
+            .IsRequired();
+
+        builder.Property(s => s.BillingPeriod)
+            .HasConversion<string>()
+            .HasMaxLength(20)
             .IsRequired();
 
         builder.Property(s => s.StartDate)
@@ -29,7 +35,14 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
         builder.Property(s => s.EndDate)
             .IsRequired(false);
 
+        builder.Property(s => s.NextBillingDate)
+            .IsRequired(false);
+
         builder.Property(s => s.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
+
+        builder.Property(s => s.AutoRenew)
             .IsRequired()
             .HasDefaultValue(true);
 

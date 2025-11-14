@@ -1,4 +1,4 @@
-﻿using Energix.Subscriptions.Infrastructure.Persistance;
+﻿﻿using Energix.Subscriptions.Infrastructure.Persistance;
 using Energix.Subscriptions.Infrastructure.PaymentGateway;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,12 +25,6 @@ public class RenewPlanCommandHandler
         if (command.UserId == Guid.Empty)
             errors.Add("El ID de usuario es requerido");
 
-        if (string.IsNullOrWhiteSpace(command.PlanType))
-            errors.Add("El tipo de plan es requerido");
-
-        if (command.RenewalMonths <= 0)
-            errors.Add("Los meses de renovación deben ser mayor a 0");
-
         if (errors.Any())
             return (false, "Validación fallida", errors);
 
@@ -39,13 +33,21 @@ public class RenewPlanCommandHandler
             // Buscar la suscripción con métodos de pago
             var subscription = await _context.Subscriptions
                 .Include(s => s.PaymentMethods)
-                .FirstOrDefaultAsync(s => s.UserId == command.UserId && s.IsActive, cancellationToken);
+                .FirstOrDefaultAsync(s => s.UserId == command.UserId, cancellationToken);
 
             if (subscription == null)
             {
                 return (false, "Suscripción no encontrada", new List<string>
                 {
-                    $"No se encontró suscripción activa para el usuario {command.UserId}"
+                    $"No se encontró suscripción para el usuario {command.UserId}"
+                });
+            }
+
+            if (subscription.IsActive && subscription.AutoRenew)
+            {
+                return (false, "Suscripción ya activa", new List<string>
+                {
+                    "La suscripción ya está activa y configurada para renovación automática"
                 });
             }
 
@@ -70,21 +72,18 @@ public class RenewPlanCommandHandler
                 });
             }
 
-            // Calcular el monto total (precio * meses)
-            var totalAmount = subscription.Price.Amount * command.RenewalMonths;
-
-            // Procesar el pago
+            // Procesar el pago según el precio actual
             var paymentRequest = new PaymentRequest
             {
                 UserId = command.UserId,
-                Amount = totalAmount,
+                Amount = subscription.Price.Amount,
                 Currency = subscription.Price.Currency,
                 CardNumber = "****" + defaultPaymentMethod.MaskedCardNumber.Value.Substring(4),
                 ExpiryMonth = defaultPaymentMethod.ExpiryDate.Month,
                 ExpiryYear = defaultPaymentMethod.ExpiryDate.Year,
                 Cvv = "***",
                 CardHolderName = defaultPaymentMethod.CardHolderName,
-                Description = $"Renovación {command.PlanType} - {command.RenewalMonths} mes(es)"
+                Description = $"Renovación {subscription.PlanType} - {subscription.BillingPeriod}"
             };
 
             var paymentResult = await _paymentGateway.ProcessPaymentAsync(paymentRequest);
@@ -97,18 +96,14 @@ public class RenewPlanCommandHandler
                 });
             }
 
-            // Extender la fecha de fin de la suscripción
-            var currentEndDate = subscription.EndDate ?? DateTime.UtcNow;
-            var newEndDate = (currentEndDate > DateTime.UtcNow ? currentEndDate : DateTime.UtcNow)
-                .AddMonths(command.RenewalMonths);
-
-            // Actualizar la suscripción
-            subscription.RenewSubscription(newEndDate);
+            // Renovar la suscripción (calcula automáticamente el siguiente periodo)
+            subscription.RenewSubscription();
+            subscription.SetAutoRenew(true);
             
             await _context.SaveChangesAsync(cancellationToken);
 
             return (true, 
-                $"Plan renovado exitosamente por {command.RenewalMonths} mes(es). TransactionId: {paymentResult.TransactionId}", 
+                $"Plan {subscription.PlanType} renovado exitosamente ({subscription.BillingPeriod}). TransactionId: {paymentResult.TransactionId}", 
                 new List<string>());
         }
         catch (Exception ex)

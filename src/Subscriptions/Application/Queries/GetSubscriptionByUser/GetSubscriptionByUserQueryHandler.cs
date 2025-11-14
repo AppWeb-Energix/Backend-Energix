@@ -31,16 +31,32 @@ public class GetSubscriptionByUserQueryHandler
         if (subscription == null)
             return null;
 
+        var planSchema = subscription.GetPlanSchema();
+
         var dto = new SubscriptionDto
         {
             Id = subscription.Id,
             UserId = subscription.UserId,
-            PlanType = subscription.PlanType,
+            PlanType = subscription.PlanType.ToString(),
+            PlanDisplayName = planSchema.DisplayName,
+            BillingPeriod = subscription.BillingPeriod.ToString(),
             PriceAmount = subscription.Price.Amount,
             PriceCurrency = subscription.Price.Currency,
             StartDate = subscription.StartDate,
             EndDate = subscription.EndDate,
-            IsActive = subscription.IsActive
+            NextBillingDate = subscription.NextBillingDate,
+            IsActive = subscription.IsActive,
+            AutoRenew = subscription.AutoRenew,
+            MaxDevices = planSchema.MaxDevices == int.MaxValue ? -1 : planSchema.MaxDevices,
+            HistoryDays = planSchema.HistoryDays == int.MaxValue ? -1 : planSchema.HistoryDays,
+            HasUnlimitedHistory = planSchema.HasUnlimitedHistory,
+            HasSmartAlerts = planSchema.HasSmartAlerts,
+            HasPersonalizedRecommendations = planSchema.HasPersonalizedRecommendations,
+            HasConsumptionForecast = planSchema.HasConsumptionForecast,
+            HasReportExport = planSchema.HasReportExport,
+            IncludedFeatures = planSchema.IncludedFeatures,
+            CreatedAt = subscription.CreatedAt,
+            UpdatedAt = subscription.UpdatedAt
         };
 
         if (query.IncludePaymentMethods)

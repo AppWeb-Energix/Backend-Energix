@@ -1,22 +1,21 @@
-using Energix.Subscriptions.Domain.Schemas;
-using Energix.Subscriptions.Infrastructure.Persistance;
+﻿using Energix.Subscriptions.Infrastructure.Persistance;
 using Microsoft.EntityFrameworkCore;
 
-namespace Energix.Subscriptions.Application.Commands.ChangePlan;
+namespace Energix.Subscriptions.Application.Commands.ChangeBillingPeriod;
 
-public class ChangePlanCommandHandler
+public class ChangeBillingPeriodCommandHandler
 {
     private readonly SubscriptionDbContext _context;
-    private readonly ChangePlanCommandValidator _validator;
+    private readonly ChangeBillingPeriodCommandValidator _validator;
 
-    public ChangePlanCommandHandler(SubscriptionDbContext context)
+    public ChangeBillingPeriodCommandHandler(SubscriptionDbContext context)
     {
         _context = context;
-        _validator = new ChangePlanCommandValidator();
+        _validator = new ChangeBillingPeriodCommandValidator();
     }
 
     public async Task<(bool Success, string Message, List<string> Errors)> HandleAsync(
-        ChangePlanCommand command,
+        ChangeBillingPeriodCommand command,
         CancellationToken cancellationToken = default)
     {
         // Validar el comando
@@ -40,25 +39,16 @@ public class ChangePlanCommandHandler
                 });
             }
 
-            // Guardar el plan anterior para el mensaje
-            var oldPlanType = subscription.PlanType;
             var oldBillingPeriod = subscription.BillingPeriod;
-            var isUpgrade = subscription.IsUpgrade(command.NewPlanType);
-            var isDowngrade = subscription.IsDowngrade(command.NewPlanType);
 
-            // Cambiar el plan (esto valida internamente y actualiza el precio según el schema)
-            subscription.ChangePlan(command.NewPlanType, command.NewBillingPeriod);
+            // Cambiar el periodo de facturación
+            subscription.ChangeBillingPeriod(command.NewBillingPeriod);
 
             // Guardar cambios
             await _context.SaveChangesAsync(cancellationToken);
 
-            var changeType = isUpgrade ? "mejorado" : isDowngrade ? "reducido" : "cambiado";
-            var billingInfo = command.NewBillingPeriod.HasValue && command.NewBillingPeriod.Value != oldBillingPeriod
-                ? $" y periodo de facturación a {command.NewBillingPeriod.Value}"
-                : string.Empty;
-
             return (true, 
-                $"Plan {changeType} exitosamente de {oldPlanType} a {command.NewPlanType}{billingInfo}", 
+                $"Periodo de facturación cambiado exitosamente de {oldBillingPeriod} a {command.NewBillingPeriod}", 
                 new List<string>());
         }
         catch (InvalidOperationException ex)
