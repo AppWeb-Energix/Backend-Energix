@@ -1,89 +1,140 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Energix.API;
-using Energix.API.DeviceManagement.Application.Internal.CommandServices;
-using Energix.API.DeviceManagement.Application.Internal.QueryServices;
-using Energix.API.DeviceManagement.Domain.Repositories;
-using Energix.API.DeviceManagement.Domain.Services;
-using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Repositories;
-using Energix.API.DeviceManagement.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// OpenAPI y explorador de endpoints
-builder.Services.AddOpenApi();
-builder.Services.AddEndpointsApiExplorer();
+// Configuration quick shortcuts
+var configuration = builder.Configuration;
 
-// Controllers
-builder.Services.AddControllers();
+// --------------------
+// Database (EF Core) - MySQL
+// --------------------
+// Get connection string from configuration (appsettings.json / environment)
+var defaultConn = configuration.GetConnectionString("DefaultConnection")
+                  ?? configuration["ConnectionStrings:DefaultConnection"]
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=your_password";
 
+// Use Pomelo or MySql provider. ServerVersion.AutoDetect will try to detect the server version.
+// Make sure the provider package (Pomelo.EntityFrameworkCore.MySql) is installed in the API project.
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
+
+// --------------------
 // CORS
-builder.Services.AddCors(options =>
+// --------------------
+const string DevCorsPolicy = "AllowDev";
+builder.Services.AddCors(o =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    o.AddPolicy(DevCorsPolicy, policy =>
     {
+        // En desarrollo permitir todo; en producción restringe a los orígenes necesarios.
         policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
 });
 
-var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
-              ?? "server=localhost;port=3306;database=energix;user=root;password=Enca248248+-;TreatTinyAsBoolean=true";
+// --------------------
+// Authentication - JWT Bearer
+// --------------------
+// Configuration expects a section "Jwt" with "Key", "Issuer" and "Audience".
+// Example appsettings.json:
+// "Jwt": { "Key": "super-secret-key-change-me", "Issuer": "energix", "Audience": "energix-client", "ExpiresMinutes": "60" }
+var jwtSection = configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"] ?? configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? "changeme_replace_with_strong_key";
+var jwtIssuer = jwtSection["Issuer"] ?? configuration["Jwt:Issuer"] ?? "energix";
+var jwtAudience = jwtSection["Audience"] ?? configuration["Jwt:Audience"] ?? "energix-client";
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
-// Domain Services
-builder.Services.AddScoped<IPlanValidationService, PlanValidationService>();
-builder.Services.AddScoped<IDeviceNamingService, DeviceNamingService>();
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false; // en producción true + HTTPS
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
 
-// Repositories
-builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
-builder.Services.AddScoped<IZoneRepository, ZoneRepository>();
+// --------------------
+// Controllers, Swagger, other services
+// --------------------
+builder.Services.AddControllers();
 
-// Application Command Services
-builder.Services.AddScoped<DeviceCommandService>();
-builder.Services.AddScoped<ZoneCommandService>();
+// Swagger / OpenAPI with Bearer auth UI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Energix API", Version = "v1" });
 
-// Application Query Services
-builder.Services.AddScoped<DeviceQueryService>();
-builder.Services.AddScoped<ZoneQueryService>();
+    // JWT Authorization in Swagger
+    var securityScheme = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Ingrese 'Bearer {token}'"
+    };
+    c.AddSecurityDefinition("Bearer", securityScheme);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { securityScheme, new[] { "Bearer" } }
+    });
+});
+
+// Register other app services here if needed, e.g.:
+// builder.Services.AddScoped<IUserService, UserService>();
 
 var app = builder.Build();
 
-// Verificar y crear base de datos si no existe
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<AppDbContext>();
-    context.Database.EnsureCreated();
-}
-
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
-});
-
-app.UseCors("AllowAll");
-
+// --------------------
+// Middleware pipeline
+// --------------------
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/openapi/v1.json", "API v1");
-        c.RoutePrefix = "swagger";
-    });
+    app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
+}
+else
+{
+    app.UseExceptionHandler("/error"); // o custom handler
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 
+app.UseRouting();
+
+app.UseCors(DevCorsPolicy);
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Map controllers (tu carpeta controllers/auth con LoginController y RegisterController será detectada)
 app.MapControllers();
+
+// Optional health/readiness endpoints
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.Run();
