@@ -15,20 +15,16 @@ using Energix.API.Personalization.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Configuration quick shortcuts
 var configuration = builder.Configuration;
 
 // --------------------
-// Database (EF Core) - MySQL
+// Base de datos (EF Core / MySQL)
 // --------------------
 // Get connection string from configuration (appsettings.json / environment)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
                   ?? "server=localhost;port=3306;database=energix;user=root;password=lucas1";
 
-// Use Pomelo or MySql provider. ServerVersion.AutoDetect will try to detect the server version.
-// Make sure the provider package (Pomelo.EntityFrameworkCore.MySql) is installed in the API project.
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
 
@@ -40,7 +36,6 @@ builder.Services.AddCors(o =>
 {
     o.AddPolicy(DevCorsPolicy, policy =>
     {
-        // En desarrollo permitir todo; en producción restringe a los orígenes necesarios.
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
@@ -48,16 +43,12 @@ builder.Services.AddCors(o =>
 });
 
 // --------------------
-// Authentication - JWT Bearer
+// JWT Auth
 // --------------------
-// Configuration expects a section "Jwt" with "Key", "Issuer" and "Audience".
-// Example appsettings.json:
-// "Jwt": { "Key": "super-secret-key-change-me", "Issuer": "energix", "Audience": "energix-client", "ExpiresMinutes": "60" }
 var jwtSection = configuration.GetSection("Jwt");
-var jwtKey = jwtSection["Key"] ?? configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? "changeme_replace_with_strong_key";
+var jwtKey = jwtSection["Key"] ?? configuration["Jwt:Key"] ?? "changeme_replace_with_strong_key";
 var jwtIssuer = jwtSection["Issuer"] ?? configuration["Jwt:Issuer"] ?? "energix";
 var jwtAudience = jwtSection["Audience"] ?? configuration["Jwt:Audience"] ?? "energix-client";
-
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services
@@ -68,7 +59,7 @@ builder.Services
     })
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false; // en producción true + HTTPS
+        options.RequireHttpsMetadata = false;
         options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -83,41 +74,27 @@ builder.Services
         };
     });
 
-// --------------------
-// Identity Bounded Context - Dependency Injection
-// --------------------
-// Configure TokenSettings from appsettings "Jwt" section
 builder.Services.Configure<TokenSettings>(configuration.GetSection("Jwt"));
 
-// Register repositories
+// --------------------
+// DI (Identity + Personalization)
+// --------------------
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-// Register domain services
 builder.Services.AddScoped<IHashingService, HashingService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
-
-// Register application services
 builder.Services.AddScoped<IUserCommandService, UserCommandService>();
 builder.Services.AddScoped<IUserQueryService, UserQueryService>();
-
-// --------------------
-// Personalization Bounded Context - Dependency Injection
-// --------------------
 builder.Services.AddPersonalizationServices();
 
 // --------------------
-// Controllers, Swagger, other services
+// Controllers + Swagger
 // --------------------
 builder.Services.AddControllers();
-
-// Swagger / OpenAPI with Bearer auth UI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Energix API", Version = "v1" });
-
-    // JWT Authorization in Swagger
     var securityScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -143,34 +120,60 @@ builder.Services.AddSubscriptionsInfrastructure(configuration);
 var app = builder.Build();
 
 // --------------------
-// Middleware pipeline
+// Pipeline
 // --------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
 }
 else
 {
-    app.UseExceptionHandler("/error"); // o custom handler
-    app.UseHsts();
+    app.UseExceptionHandler("/error");
+    // HSTS solo si sirves HTTPS
+    // app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// Evitar warning de HTTPS si no hay puerto configurado
+var hasHttpsPort = app.Configuration["ASPNETCORE_URLS"]?.Contains("https://") == true;
+if (hasHttpsPort)
+{
+    app.UseHttpsRedirection();
+}
+
+app.UseSwagger();
+app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
 
 app.UseRouting();
-
 app.UseCors(DevCorsPolicy);
-
 app.UseAuthentication();
-app.UseUserContext(); // Loads authenticated user into HttpContext.Items
+app.UseUserContext();
 app.UseAuthorization();
 
-// Map controllers (tu carpeta controllers/auth con LoginController y RegisterController será detectada)
 app.MapControllers();
 
-// Optional health/readiness endpoints
-app.MapGet("/", () => Results.Redirect("/swagger"));
+// Endpoint raíz informativo
+app.MapGet("/", () => Results.Ok(new
+{
+    status = "ok",
+    env = app.Environment.EnvironmentName,
+    time = DateTime.UtcNow
+}));
+
+// Health sencillo
+app.MapGet("/health", () => Results.Ok("healthy"));
+
+// Readiness (chequeo rápido DB)
+app.MapGet("/ready", async (AppDbContext db) =>
+{
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("SELECT 1");
+        return Results.Ok("ready");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
+});
 
 app.Run();
