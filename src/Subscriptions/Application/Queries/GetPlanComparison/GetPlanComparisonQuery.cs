@@ -1,9 +1,9 @@
-﻿using Energix.Subscriptions.Domain.Enums;
+using Energix.Subscriptions.Domain.Enums;
 
 namespace Energix.Subscriptions.Application.Queries.GetPlanComparison;
 
 /// <summary>
-/// Query para comparar planes de suscripción
+/// Query para comparar planes de suscripci�n
 /// </summary>
 public class GetPlanComparisonQuery
 {

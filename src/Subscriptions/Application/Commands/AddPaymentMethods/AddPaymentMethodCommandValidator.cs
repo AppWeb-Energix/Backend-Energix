@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 
 namespace Energix.Subscriptions.Application.Commands.AddPaymentMethods;
 
@@ -12,9 +12,9 @@ public class AddPaymentMethodCommandValidator
             errors.Add("El ID de usuario es requerido");
 
         if (string.IsNullOrWhiteSpace(command.CardNumber))
-            errors.Add("El número de tarjeta es requerido");
+            errors.Add("El n�mero de tarjeta es requerido");
         else if (!IsValidCreditCard(command.CardNumber))
-            errors.Add("El número de tarjeta no es válido");
+            errors.Add("El n�mero de tarjeta no es v�lido");
 
         if (string.IsNullOrWhiteSpace(command.CardHolderName))
             errors.Add("El nombre del titular es requerido");
@@ -30,15 +30,19 @@ public class AddPaymentMethodCommandValidator
         if (string.IsNullOrWhiteSpace(command.Cvv))
             errors.Add("El CVV es requerido");
         else if (!Regex.IsMatch(command.Cvv, @"^\d{3,4}$"))
-            errors.Add("El CVV debe tener 3 o 4 dígitos");
+            errors.Add("El CVV debe tener 3 o 4 d�gitos");
 
         if (string.IsNullOrWhiteSpace(command.CardBrand))
             errors.Add("La marca de la tarjeta es requerida");
         else if (!new[] { "Visa", "Mastercard", "AmericanExpress", "Discover" }.Contains(command.CardBrand))
-            errors.Add("Marca de tarjeta no válida");
+            errors.Add("Marca de tarjeta no v�lida");
 
-        if (IsExpired(command.ExpiryMonth, command.ExpiryYear))
-            errors.Add("La tarjeta ha expirado");
+        // Solo validar expiración si el mes y año son válidos
+        if (command.ExpiryMonth >= 1 && command.ExpiryMonth <= 12 && command.ExpiryYear >= DateTime.Now.Year)
+        {
+            if (IsExpired(command.ExpiryMonth, command.ExpiryYear))
+                errors.Add("La tarjeta ha expirado");
+        }
 
         return errors;
     }

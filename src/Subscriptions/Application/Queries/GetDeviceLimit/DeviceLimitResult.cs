@@ -1,7 +1,7 @@
-ï»¿namespace Energix.Subscriptions.Application.Queries.GetDeviceLimit;
+namespace Energix.Subscriptions.Application.Queries.GetDeviceLimit;
 
 /// <summary>
-/// Resultado con informaciÃ³n de lÃ­mites de dispositivos
+/// Resultado con información de límites de dispositivos
 /// </summary>
 public class DeviceLimitResult
 {

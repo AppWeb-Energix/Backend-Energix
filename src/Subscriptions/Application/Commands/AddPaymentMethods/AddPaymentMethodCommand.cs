@@ -1,4 +1,4 @@
-﻿namespace Energix.Subscriptions.Application.Commands.AddPaymentMethods;
+namespace Energix.Subscriptions.Application.Commands.AddPaymentMethods;
 
 public class AddPaymentMethodCommand
 {

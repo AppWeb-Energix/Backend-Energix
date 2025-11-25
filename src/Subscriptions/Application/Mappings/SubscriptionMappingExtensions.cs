@@ -1,4 +1,4 @@
-﻿using Energix.Subscriptions.Application.DTOs;
+using Energix.Subscriptions.Application.DTOs;
 using Energix.Subscriptions.Domain.Aggregates;
 using Energix.Subscriptions.Domain.Schemas;
 

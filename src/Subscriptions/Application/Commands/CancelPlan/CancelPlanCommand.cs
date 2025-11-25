@@ -1,4 +1,4 @@
-﻿namespace Energix.Subscriptions.Application.Commands.CancelPlan;
+namespace Energix.Subscriptions.Application.Commands.CancelPlan;
 
 public class CancelPlanCommand
 {

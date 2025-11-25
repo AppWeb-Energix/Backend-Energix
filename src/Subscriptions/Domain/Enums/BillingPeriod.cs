@@ -8,7 +8,7 @@ public enum BillingPeriod
     /// <summary>
     /// Facturación mensual
     /// </summary>
-    Monthly = 0,
+    Monthly = 11,
     
     /// <summary>
     /// Facturación anual

@@ -1,4 +1,4 @@
-﻿using Energix.Subscriptions.Domain.Enums;
+using Energix.Subscriptions.Domain.Enums;
 namespace Energix.Subscriptions.Application.Commands.Subscribe;
 public class SubscribeCommand
 {

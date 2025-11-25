@@ -1,10 +1,10 @@
-ï»¿using Energix.Subscriptions.Application.DTOs;
+using Energix.Subscriptions.Application.DTOs;
 using Energix.Subscriptions.Domain.Schemas;
 
 namespace Energix.Subscriptions.Application.Queries.GetPlanComparison;
 
 /// <summary>
-/// Resultado de comparaciÃ³n entre planes
+/// Resultado de comparación entre planes
 /// </summary>
 public class PlanComparisonResult
 {
@@ -44,7 +44,7 @@ public class GetPlanComparisonQueryHandler
         result.PriceDifferenceMonthly = targetPlanSchema.MonthlyPrice.Amount - currentPlanSchema.MonthlyPrice.Amount;
         result.PriceDifferenceYearly = targetPlanSchema.YearlyPrice.Amount - currentPlanSchema.YearlyPrice.Amount;
 
-        // Identificar caracterÃ­sticas nuevas y removidas
+        // Identificar características nuevas y removidas
         var currentFeatures = currentPlanSchema.IncludedFeatures.ToHashSet();
         var targetFeatures = targetPlanSchema.IncludedFeatures.ToHashSet();
 

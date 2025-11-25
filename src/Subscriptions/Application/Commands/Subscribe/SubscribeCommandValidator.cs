@@ -1,4 +1,4 @@
-﻿using Energix.Subscriptions.Domain.Enums;
+using Energix.Subscriptions.Domain.Enums;
 
 namespace Energix.Subscriptions.Application.Commands.Subscribe;
 
@@ -12,10 +12,10 @@ public class SubscribeCommandValidator
             errors.Add("El ID de usuario es requerido");
 
         if (!Enum.IsDefined(typeof(PlanType), command.PlanType))
-            errors.Add($"Plan inválido. Planes válidos: {string.Join(", ", Enum.GetNames(typeof(PlanType)))}");
+            errors.Add($"Plan inv�lido. Planes v�lidos: {string.Join(", ", Enum.GetNames(typeof(PlanType)))}");
 
         if (!Enum.IsDefined(typeof(BillingPeriod), command.BillingPeriod))
-            errors.Add($"Periodo de facturación inválido. Valores válidos: {string.Join(", ", Enum.GetNames(typeof(BillingPeriod)))}");
+            errors.Add($"Periodo de facturaci�n inv�lido. Valores v�lidos: {string.Join(", ", Enum.GetNames(typeof(BillingPeriod)))}");
 
         return errors;
     }

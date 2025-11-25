@@ -1,4 +1,4 @@
-﻿namespace Energix.Subscriptions.Application.Queries.GetDeviceLimit;
+namespace Energix.Subscriptions.Application.Queries.GetDeviceLimit;
 
 public class GetDeviceLimitQuery
 {

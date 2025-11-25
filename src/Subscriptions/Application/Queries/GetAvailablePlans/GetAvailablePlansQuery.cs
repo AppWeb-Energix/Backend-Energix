@@ -1,4 +1,4 @@
-﻿namespace Energix.Subscriptions.Application.Queries.GetAvailablePlans;
+namespace Energix.Subscriptions.Application.Queries.GetAvailablePlans;
 
 public class GetAvailablePlansQuery
 {

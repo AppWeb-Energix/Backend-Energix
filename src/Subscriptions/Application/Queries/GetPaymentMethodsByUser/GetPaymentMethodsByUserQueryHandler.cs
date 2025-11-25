@@ -1,14 +1,14 @@
 using Energix.Subscriptions.Application.DTOs;
-using Energix.Subscriptions.Infrastructure.Persistance;
+using Energix.API;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.Subscriptions.Application.Queries.GetPaymentMethodsByUser;
 
 public class GetPaymentMethodsByUserQueryHandler
 {
-    private readonly SubscriptionDbContext _context;
+    private readonly AppDbContext _context;
 
-    public GetPaymentMethodsByUserQueryHandler(SubscriptionDbContext context)
+    public GetPaymentMethodsByUserQueryHandler(AppDbContext context)
     {
         _context = context;
     }

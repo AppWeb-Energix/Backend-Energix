@@ -11,8 +11,6 @@ using Energix.Subscriptions.Application.Queries.GetDeviceLimit;
 using Energix.Subscriptions.Application.Queries.GetPaymentMethodsByUser;
 using Energix.Subscriptions.Application.Queries.GetPlanComparison;
 using Energix.Subscriptions.Application.Queries.GetSubscriptionByUser;
-using Energix.Subscriptions.Infrastructure.Persistance;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,23 +22,8 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("SubscriptionsConnection")
-            ?? configuration.GetConnectionString("DefaultConnection");
-
-        services.AddDbContext<SubscriptionDbContext>(options =>
-        {
-            options.UseMySql(
-                connectionString,
-                ServerVersion.AutoDetect(connectionString),
-                mySqlOptions =>
-                {
-                    mySqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 3,
-                        maxRetryDelay: TimeSpan.FromSeconds(5),
-                        errorNumbersToAdd: null);
-                });
-        });
-
+        // No necesitamos registrar SubscriptionDbContext porque ahora usamos AppDbContext unificado
+        
         // Command Handlers
         services.AddScoped<AddPaymentMethodCommandHandler>();
         services.AddScoped<ChangePlanCommandHandler>();

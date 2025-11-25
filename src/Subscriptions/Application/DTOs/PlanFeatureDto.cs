@@ -1,7 +1,7 @@
-﻿namespace Energix.Subscriptions.Application.DTOs;
+namespace Energix.Subscriptions.Application.DTOs;
 
 /// <summary>
-/// DTO que representa una característica de un plan
+/// DTO que representa una caracter�stica de un plan
 /// </summary>
 public class PlanFeatureDto
 {

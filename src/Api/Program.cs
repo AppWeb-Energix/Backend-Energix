@@ -25,7 +25,7 @@ var configuration = builder.Configuration;
 // Get connection string from configuration (appsettings.json / environment)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
-                  ?? "server=localhost;port=3306;database=energix;user=root;password=Password123";
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=lucas1";
 
 // Use Pomelo or MySql provider. ServerVersion.AutoDetect will try to detect the server version.
 // Make sure the provider package (Pomelo.EntityFrameworkCore.MySql) is installed in the API project.

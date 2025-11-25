@@ -1,9 +1,9 @@
-ï»¿using Energix.Subscriptions.Domain.Enums;
+using Energix.Subscriptions.Domain.Enums;
 
 namespace Energix.Subscriptions.Application.Commands.ChangeBillingPeriod;
 
 /// <summary>
-/// Comando para cambiar el periodo de facturaciÃ³n de una suscripciÃ³n
+/// Comando para cambiar el periodo de facturación de una suscripción
 /// </summary>
 public class ChangeBillingPeriodCommand
 {

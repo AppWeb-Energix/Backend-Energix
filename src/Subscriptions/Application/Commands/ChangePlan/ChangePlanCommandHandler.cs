@@ -1,15 +1,15 @@
 using Energix.Subscriptions.Domain.Schemas;
-using Energix.Subscriptions.Infrastructure.Persistance;
+using Energix.API;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.Subscriptions.Application.Commands.ChangePlan;
 
 public class ChangePlanCommandHandler
 {
-    private readonly SubscriptionDbContext _context;
+    private readonly AppDbContext _context;
     private readonly ChangePlanCommandValidator _validator;
 
-    public ChangePlanCommandHandler(SubscriptionDbContext context)
+    public ChangePlanCommandHandler(AppDbContext context)
     {
         _context = context;
         _validator = new ChangePlanCommandValidator();

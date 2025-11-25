@@ -1,14 +1,14 @@
-Ôªøusing Energix.Subscriptions.Infrastructure.Persistance;
+using Energix.API;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.Subscriptions.Application.Commands.ChangeBillingPeriod;
 
 public class ChangeBillingPeriodCommandHandler
 {
-    private readonly SubscriptionDbContext _context;
+    private readonly AppDbContext _context;
     private readonly ChangeBillingPeriodCommandValidator _validator;
 
-    public ChangeBillingPeriodCommandHandler(SubscriptionDbContext context)
+    public ChangeBillingPeriodCommandHandler(AppDbContext context)
     {
         _context = context;
         _validator = new ChangeBillingPeriodCommandValidator();
@@ -22,38 +22,38 @@ public class ChangeBillingPeriodCommandHandler
         var errors = _validator.Validate(command);
         if (errors.Any())
         {
-            return (false, "Validaci√≥n fallida", errors);
+            return (false, "ValidaciÛn fallida", errors);
         }
 
         try
         {
-            // Buscar la suscripci√≥n del usuario
+            // Buscar la suscripciÛn del usuario
             var subscription = await _context.Subscriptions
                 .FirstOrDefaultAsync(s => s.UserId == command.UserId && s.IsActive, cancellationToken);
 
             if (subscription == null)
             {
-                return (false, "No se encontr√≥ suscripci√≥n activa", new List<string> 
+                return (false, "No se encontrÛ suscripciÛn activa", new List<string> 
                 { 
-                    $"No existe una suscripci√≥n activa para el usuario {command.UserId}" 
+                    $"No existe una suscripciÛn activa para el usuario {command.UserId}" 
                 });
             }
 
             var oldBillingPeriod = subscription.BillingPeriod;
 
-            // Cambiar el periodo de facturaci√≥n
+            // Cambiar el periodo de facturaciÛn
             subscription.ChangeBillingPeriod(command.NewBillingPeriod);
 
             // Guardar cambios
             await _context.SaveChangesAsync(cancellationToken);
 
             return (true, 
-                $"Periodo de facturaci√≥n cambiado exitosamente de {oldBillingPeriod} a {command.NewBillingPeriod}", 
+                $"Periodo de facturaciÛn cambiado exitosamente de {oldBillingPeriod} a {command.NewBillingPeriod}", 
                 new List<string>());
         }
         catch (InvalidOperationException ex)
         {
-            return (false, "Operaci√≥n inv√°lida", new List<string> { ex.Message });
+            return (false, "OperaciÛn inv·lida", new List<string> { ex.Message });
         }
         catch (Exception ex)
         {

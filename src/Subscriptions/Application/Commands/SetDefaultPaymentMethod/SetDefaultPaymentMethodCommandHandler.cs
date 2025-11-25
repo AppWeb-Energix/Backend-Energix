@@ -1,13 +1,13 @@
-Ôªøusing Energix.Subscriptions.Infrastructure.Persistance;
+using Energix.API;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.Subscriptions.Application.Commands.SetDefaultPaymentMethod;
 
 public class SetDefaultPaymentMethodCommandHandler
 {
-    private readonly SubscriptionDbContext _context;
+    private readonly AppDbContext _context;
 
-    public SetDefaultPaymentMethodCommandHandler(SubscriptionDbContext context)
+    public SetDefaultPaymentMethodCommandHandler(AppDbContext context)
     {
         _context = context;
     }
@@ -23,57 +23,57 @@ public class SetDefaultPaymentMethodCommandHandler
             errors.Add("El ID de usuario es requerido");
 
         if (command.PaymentMethodId == Guid.Empty)
-            errors.Add("El ID del m√©todo de pago es requerido");
+            errors.Add("El ID del mÈtodo de pago es requerido");
 
         if (errors.Any())
-            return (false, "Validaci√≥n fallida", errors);
+            return (false, "ValidaciÛn fallida", errors);
 
         try
         {
-            // Buscar la suscripci√≥n con sus m√©todos de pago
+            // Buscar la suscripciÛn con sus mÈtodos de pago
             var subscription = await _context.Subscriptions
                 .Include(s => s.PaymentMethods)
                 .FirstOrDefaultAsync(s => s.UserId == command.UserId && s.IsActive, cancellationToken);
 
             if (subscription == null)
             {
-                return (false, "Suscripci√≥n no encontrada", new List<string>
+                return (false, "SuscripciÛn no encontrada", new List<string>
                 {
-                    $"No se encontr√≥ suscripci√≥n activa para el usuario {command.UserId}"
+                    $"No se encontrÛ suscripciÛn activa para el usuario {command.UserId}"
                 });
             }
 
-            // Buscar el m√©todo de pago espec√≠fico
+            // Buscar el mÈtodo de pago especÌfico
             var paymentMethod = subscription.PaymentMethods
                 .FirstOrDefault(pm => pm.Id == command.PaymentMethodId && pm.UserId == command.UserId);
 
             if (paymentMethod == null)
             {
-                return (false, "M√©todo de pago no encontrado", new List<string>
+                return (false, "MÈtodo de pago no encontrado", new List<string>
                 {
-                    $"No se encontr√≥ el m√©todo de pago {command.PaymentMethodId} para el usuario {command.UserId}"
+                    $"No se encontrÛ el mÈtodo de pago {command.PaymentMethodId} para el usuario {command.UserId}"
                 });
             }
 
-            // Verificar si est√° inactivo
+            // Verificar si est· inactivo
             if (!paymentMethod.IsActive)
             {
-                return (false, "M√©todo de pago inactivo", new List<string>
+                return (false, "MÈtodo de pago inactivo", new List<string>
                 {
-                    "No se puede establecer como predeterminado un m√©todo de pago inactivo"
+                    "No se puede establecer como predeterminado un mÈtodo de pago inactivo"
                 });
             }
 
             // Verificar si ya es el predeterminado
             if (paymentMethod.IsDefault)
             {
-                return (false, "Ya es el m√©todo predeterminado", new List<string>
+                return (false, "Ya es el mÈtodo predeterminado", new List<string>
                 {
-                    "Este m√©todo de pago ya es el predeterminado"
+                    "Este mÈtodo de pago ya es el predeterminado"
                 });
             }
 
-            // Desactivar el m√©todo predeterminado anterior
+            // Desactivar el mÈtodo predeterminado anterior
             var currentDefault = subscription.PaymentMethods
                 .FirstOrDefault(pm => pm.IsDefault && pm.IsActive);
 
@@ -82,13 +82,13 @@ public class SetDefaultPaymentMethodCommandHandler
                 currentDefault.SetAsNonDefault();
             }
 
-            // Establecer el nuevo m√©todo como predeterminado
+            // Establecer el nuevo mÈtodo como predeterminado
             paymentMethod.SetAsDefault();
 
             // Guardar cambios
             await _context.SaveChangesAsync(cancellationToken);
 
-            return (true, "M√©todo de pago establecido como predeterminado exitosamente", new List<string>());
+            return (true, "MÈtodo de pago establecido como predeterminado exitosamente", new List<string>());
         }
         catch (Exception ex)
         {

@@ -1,15 +1,15 @@
-锘縰sing Energix.Subscriptions.Domain.Aggregates;
-using Energix.Subscriptions.Infrastructure.Persistance;
+using Energix.Subscriptions.Domain.Aggregates;
+using Energix.API;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.Subscriptions.Application.Commands.Subscribe;
 
 public class SubscribeCommandHandler
 {
-    private readonly SubscriptionDbContext _context;
+    private readonly AppDbContext _context;
     private readonly SubscribeCommandValidator _validator;
 
-    public SubscribeCommandHandler(SubscriptionDbContext context)
+    public SubscribeCommandHandler(AppDbContext context)
     {
         _context = context;
         _validator = new SubscribeCommandValidator();
@@ -23,23 +23,23 @@ public class SubscribeCommandHandler
         var errors = _validator.Validate(command);
         if (errors.Any())
         {
-            return (false, "Validaci贸n fallida", errors, null);
+            return (false, "Validaci髇 fallida", errors, null);
         }
 
         try
         {
-            // Verificar si ya tiene una suscripci贸n activa
+            // Verificar si ya tiene una suscripci髇 activa
             var existingSubscription = await _context.Subscriptions
                 .FirstOrDefaultAsync(s => s.UserId == command.UserId && s.IsActive, cancellationToken);
 
             if (existingSubscription != null)
             {
-                return (false, "Ya existe una suscripci贸n activa", 
-                    new List<string> { $"El usuario ya tiene una suscripci贸n activa del plan {existingSubscription.PlanType}" },
+                return (false, "Ya existe una suscripci髇 activa", 
+                    new List<string> { $"El usuario ya tiene una suscripci髇 activa del plan {existingSubscription.PlanType}" },
                     null);
             }
 
-            // Crear la nueva suscripci贸n
+            // Crear la nueva suscripci髇
             var subscription = Subscription.Create(
                 command.UserId,
                 command.PlanType,
@@ -50,7 +50,7 @@ public class SubscribeCommandHandler
             await _context.SaveChangesAsync(cancellationToken);
 
             return (true, 
-                $"Suscripci贸n al plan {command.PlanType} creada exitosamente", 
+                $"Suscripci髇 al plan {command.PlanType} creada exitosamente", 
                 new List<string>(),
                 subscription.Id);
         }

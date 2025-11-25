@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Energix.Subscriptions.Infrastructure.PaymentGateway;
 
 /// <summary>
@@ -20,6 +22,18 @@ public class FakePaymentGateway : IPaymentGateway
         if (string.IsNullOrWhiteSpace(request.CardNumber))
         {
             return PaymentResult.Failed("Número de tarjeta inválido");
+        }
+
+        // Validación defensiva: evitar month=0 que lanza ArgumentOutOfRange
+        if (request.ExpiryMonth < 1 || request.ExpiryMonth > 12)
+        {
+            return PaymentResult.Failed("Mes de expiración inválido");
+        }
+
+        // Validación defensiva: rango de año razonable
+        if (request.ExpiryYear < 1900 || request.ExpiryYear > DateTime.Now.Year + 50)
+        {
+            return PaymentResult.Failed("Año de expiración inválido");
         }
 
         // Simular rechazo si el número termina en 0000
@@ -212,8 +226,13 @@ public class PaymentRequest
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "USD";
     public string CardNumber { get; set; } = string.Empty;
+
+    [Range(1, 12, ErrorMessage = "ExpiryMonth debe estar entre 1 y 12")]
     public int ExpiryMonth { get; set; }
+
+    [Range(1900, 9999, ErrorMessage = "ExpiryYear no es válido")]
     public int ExpiryYear { get; set; }
+
     public string Cvv { get; set; } = string.Empty;
     public string CardHolderName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -264,4 +283,3 @@ public class PaymentTransaction
     public DateTime ProcessedAt { get; set; }
     public string Description { get; set; } = string.Empty;
 }
-

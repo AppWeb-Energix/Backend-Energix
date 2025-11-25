@@ -24,6 +24,16 @@ public class PaymentsController : ControllerBase
         [FromBody] PaymentRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+            return BadRequest(new ErrorResponse
+            {
+                Message = "Datos de pago inválidos",
+                Errors = errors
+            });
+        }
+
         var result = await _paymentGateway.ProcessPaymentAsync(request);
 
         if (!result.IsSuccess)
@@ -162,4 +172,3 @@ public class CardValidationResponse
     public bool IsValid { get; set; }
     public string Message { get; set; } = string.Empty;
 }
-

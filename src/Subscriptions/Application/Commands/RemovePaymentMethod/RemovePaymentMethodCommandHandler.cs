@@ -1,13 +1,13 @@
-using Energix.Subscriptions.Infrastructure.Persistance;
+using Energix.API;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.Subscriptions.Application.Commands.RemovePaymentMethod;
 
 public class RemovePaymentMethodCommandHandler
 {
-    private readonly SubscriptionDbContext _context;
+    private readonly AppDbContext _context;
 
-    public RemovePaymentMethodCommandHandler(SubscriptionDbContext context)
+    public RemovePaymentMethodCommandHandler(AppDbContext context)
     {
         _context = context;
     }

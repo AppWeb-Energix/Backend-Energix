@@ -1,16 +1,16 @@
-ï»¿using Energix.Subscriptions.Domain.Aggregates;
+using Energix.Subscriptions.Domain.Aggregates;
 using Energix.Subscriptions.Domain.ValueObjects;
-using Energix.Subscriptions.Infrastructure.Persistance;
+using Energix.API;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.Subscriptions.Application.Commands.AddPaymentMethods;
 
 public class AddPaymentMethodCommandHandler
 {
-    private readonly SubscriptionDbContext _context;
+    private readonly AppDbContext _context;
     private readonly AddPaymentMethodCommandValidator _validator;
 
-    public AddPaymentMethodCommandHandler(SubscriptionDbContext context)
+    public AddPaymentMethodCommandHandler(AppDbContext context)
     {
         _context = context;
         _validator = new AddPaymentMethodCommandValidator();
@@ -36,7 +36,7 @@ public class AddPaymentMethodCommandHandler
             {
                 return (false, null, new List<string> 
                 { 
-                    $"No se encontrÃ³ suscripciÃ³n activa para el usuario {command.UserId}" 
+                    $"No se encontró suscripción activa para el usuario {command.UserId}" 
                 });
             }
 
@@ -49,7 +49,7 @@ public class AddPaymentMethodCommandHandler
             {
                 return (false, null, new List<string> 
                 { 
-                    "Ya existe un mÃ©todo de pago con esta tarjeta" 
+                    "Ya existe un método de pago con esta tarjeta" 
                 });
             }
 

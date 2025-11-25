@@ -65,15 +65,9 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
                 .IsRequired();
         });
 
-        builder.HasMany<PaymentMethod>("_paymentMethods")
-            .WithOne()
-            .HasForeignKey(pm => pm.UserId)
-            .HasPrincipalKey(s => s.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Metadata
-            .FindNavigation("_paymentMethods")!
-            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        // Ignorar la propiedad de navegación PaymentMethods
+        // La relación se maneja a través de UserId en ambas entidades
+        builder.Ignore(s => s.PaymentMethods);
 
         builder.HasIndex(s => s.UserId)
             .IsUnique();

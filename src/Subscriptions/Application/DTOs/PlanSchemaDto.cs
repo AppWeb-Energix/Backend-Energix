@@ -1,7 +1,7 @@
-﻿namespace Energix.Subscriptions.Application.DTOs;
+namespace Energix.Subscriptions.Application.DTOs;
 
 /// <summary>
-/// DTO que representa un plan de suscripción disponible
+/// DTO que representa un plan de suscripci�n disponible
 /// </summary>
 public class PlanSchemaDto
 {

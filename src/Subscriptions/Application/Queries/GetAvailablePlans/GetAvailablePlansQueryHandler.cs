@@ -1,4 +1,4 @@
-﻿using Energix.Subscriptions.Application.DTOs;
+using Energix.Subscriptions.Application.DTOs;
 using Energix.Subscriptions.Domain.Schemas;
 
 namespace Energix.Subscriptions.Application.Queries.GetAvailablePlans;

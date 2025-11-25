@@ -1,14 +1,14 @@
 using Energix.Subscriptions.Application.DTOs;
-using Energix.Subscriptions.Infrastructure.Persistance;
+using Energix.API;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.Subscriptions.Application.Queries.GetSubscriptionByUser;
 
 public class GetSubscriptionByUserQueryHandler
 {
-    private readonly SubscriptionDbContext _context;
+    private readonly AppDbContext _context;
 
-    public GetSubscriptionByUserQueryHandler(SubscriptionDbContext context)
+    public GetSubscriptionByUserQueryHandler(AppDbContext context)
     {
         _context = context;
     }
