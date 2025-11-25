@@ -12,6 +12,7 @@ using Energix.API.Identity.Infrastructure.Persistence.Repositories;
 using Energix.API.Identity.Infrastructure.Tokens;
 using Energix.API.Identity.Infrastructure.Authorization.Middleware;
 using Energix.API.Personalization.Infrastructure;
+using Energix.Subscriptions.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -19,10 +20,10 @@ var configuration = builder.Configuration;
 // --------------------
 // Base de datos (EF Core / MySQL)
 // --------------------
-var defaultConn =
-    configuration.GetConnectionString("DefaultConnection")
-    ?? configuration["ConnectionStrings:DefaultConnection"]
-    ?? "server=localhost;port=3306;database=energix;user=root;password=Password123";
+// Get connection string from configuration (appsettings.json / environment)
+var defaultConn = configuration.GetConnectionString("DefaultConnection")
+                  ?? configuration["ConnectionStrings:DefaultConnection"]
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=lucas1";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
@@ -109,6 +110,12 @@ builder.Services.AddSwaggerGen(c =>
         { securityScheme, new[] { "Bearer" } }
     });
 });
+
+// Register other app services here if needed, e.g.:
+// builder.Services.AddScoped<IUserService, UserService>();
+
+// Registrar módulo de Subscriptions
+builder.Services.AddSubscriptionsInfrastructure(configuration);
 
 var app = builder.Build();
 

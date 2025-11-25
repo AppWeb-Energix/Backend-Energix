@@ -4,6 +4,8 @@ using Energix.API.Identity.Domain.Entities;
 using Energix.API.Identity.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using Energix.API.Personalization.Domain.Model.Aggregates;
 using Energix.API.Personalization.Infrastructure.Persistence.EFC.Configuration.Extensions;
+using Energix.Subscriptions.Domain.Aggregates;
+using Energix.Subscriptions.Infrastructure.Persistance.Configurations;
 using Microsoft.EntityFrameworkCore;
 
 namespace Energix.API;
@@ -23,6 +25,10 @@ public class AppDbContext : DbContext
     
     // DbSets - Identity
     public DbSet<User> Users { get; set; } = null!;
+    
+    // DbSets - Subscriptions
+    public DbSet<Subscription> Subscriptions { get; set; } = null!;
+    public DbSet<PaymentMethod> PaymentMethods { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -36,5 +42,8 @@ public class AppDbContext : DbContext
         
         // Identity Configuration
         builder.ApplyIdentityConfiguration();
+        
+        // Subscriptions Configuration
+        builder.ApplyConfigurationsFromAssembly(typeof(SubscriptionConfiguration).Assembly);
     }
 }
