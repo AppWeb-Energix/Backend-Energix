@@ -28,7 +28,7 @@ public class SessionController : ControllerBase
     
     [HttpPost("sign-in")]
     [AllowAnonymous]
-    public async Task<IActionResult> SignIn([FromBody] SignInRequest request)
+    public async Task<IActionResult> SignIn([FromBody] SignInRequest request, CancellationToken cancellationToken = default)
     {
         if (request == null)
             return BadRequest(new { error = "Request body es requerido" });
@@ -41,16 +41,25 @@ public class SessionController : ControllerBase
         if (!success)
             return Unauthorized(new { error = message });
         
-        var userResource = user as UserResource;
-        if (userResource == null)
+        // Extraer id del objeto anónimo
+        int userId;
+        try
+        {
+            var userDynamic = (dynamic)user!;
+            userId = (int)userDynamic.id;
+        }
+        catch
+        {
             return StatusCode(500, new { error = "Error al procesar información del usuario" });
+        }
 
         var subscription = await _getSubscriptionQueryHandler.HandleAsync(
             new GetSubscriptionByUserQuery 
             { 
-                UserId = userResource.Id,
+                UserId = userId,
                 IncludePaymentMethods = false 
-            }
+            },
+            cancellationToken
         );
         
         var planInfo = subscription != null 
@@ -77,7 +86,7 @@ public class SessionController : ControllerBase
     
     [HttpPost("sign-up")]
     [AllowAnonymous]
-    public async Task<IActionResult> SignUp([FromBody] SignUpRequest request)
+    public async Task<IActionResult> SignUp([FromBody] SignUpRequest request, CancellationToken cancellationToken = default)
     {
         if (request == null)
             return BadRequest(new { error = "Request body es requerido" });
@@ -104,15 +113,15 @@ public class SessionController : ControllerBase
             BillingPeriod = BillingPeriod.Monthly
         };
 
-        var (subSuccess, subMessage, errors, subscriptionId) = 
-            await _subscribeCommandHandler.HandleAsync(subscribeCommand);
+        var (subSuccess, subMessage, _, _) = 
+            await _subscribeCommandHandler.HandleAsync(subscribeCommand, cancellationToken);
         
         if (!subSuccess)
         {
             Console.WriteLine($"Warning: No se pudo crear suscripción para usuario {userId}: {subMessage}");
         }
         
-        var (signInSuccess, signInMessage, token, user) = await _userCommandService.SignInAsync(
+        var (signInSuccess, _, token, user) = await _userCommandService.SignInAsync(
             request.Email,
             request.Password
         );
@@ -127,12 +136,40 @@ public class SessionController : ControllerBase
             });
         }
         
-        var planInfo = new
+        // Extraer id del objeto anónimo
+        int userIdFromSignIn;
+        try
         {
-            type = "Basic",
-            uiKey = "basic",
-            displayName = "Basic Plan"
-        };
+            var userDynamic = (dynamic)user!;
+            userIdFromSignIn = (int)userDynamic.id;
+        }
+        catch
+        {
+            return StatusCode(500, new { error = "Error al procesar información del usuario" });
+        }
+
+        var subscription = await _getSubscriptionQueryHandler.HandleAsync(
+            new GetSubscriptionByUserQuery 
+            { 
+                UserId = userIdFromSignIn,
+                IncludePaymentMethods = false 
+            },
+            cancellationToken
+        );
+        
+        var planInfo = subscription != null 
+            ? new
+            {
+                type = subscription.PlanType,
+                uiKey = GetPlanUiKey(subscription.PlanType),
+                displayName = subscription.PlanDisplayName
+            }
+            : new
+            {
+                type = "Basic",
+                uiKey = "basic",
+                displayName = "Basic Plan"
+            };
 
         return Created($"/api/v1/users/{userId}", new
         {
