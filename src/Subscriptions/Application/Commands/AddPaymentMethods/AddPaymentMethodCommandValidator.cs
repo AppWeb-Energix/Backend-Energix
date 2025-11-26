@@ -8,7 +8,7 @@ public class AddPaymentMethodCommandValidator
     {
         var errors = new List<string>();
 
-        if (command.UserId == Guid.Empty)
+        if (command.UserId <= 0)
             errors.Add("El ID de usuario es requerido");
 
         if (string.IsNullOrWhiteSpace(command.CardNumber))

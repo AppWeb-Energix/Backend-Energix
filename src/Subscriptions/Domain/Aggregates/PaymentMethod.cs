@@ -1,11 +1,11 @@
-﻿using Energix.Subscriptions.Domain.ValueObjects;
+﻿﻿using Energix.Subscriptions.Domain.ValueObjects;
 
 namespace Energix.Subscriptions.Domain.Aggregates;
 
 public class PaymentMethod
 {
     public Guid Id { get; private set; }
-    public Guid UserId { get; private set; }
+    public int UserId { get; private set; }
     public MaskedCardNumber MaskedCardNumber { get; private set; }
     public CardBrand CardBrand { get; private set; }
     public string CardHolderName { get; private set; }
@@ -18,7 +18,7 @@ public class PaymentMethod
     private PaymentMethod() { }
 
     private PaymentMethod(
-        Guid userId,
+        int userId,
         MaskedCardNumber maskedCardNumber,
         CardBrand cardBrand,
         string cardHolderName,
@@ -37,15 +37,15 @@ public class PaymentMethod
     }
 
     public static PaymentMethod Create(
-        Guid userId,
+        int userId,
         MaskedCardNumber maskedCardNumber,
         CardBrand cardBrand,
         string cardHolderName,
         DateTime expiryDate,
         bool isDefault = false)
     {
-        if (userId == Guid.Empty)
-            throw new ArgumentException("El UserId no puede estar vacío");
+        if (userId <= 0)
+            throw new ArgumentException("El UserId debe ser mayor que cero");
         
         if (string.IsNullOrWhiteSpace(cardHolderName))
             throw new ArgumentException("El nombre del titular es requerido");

@@ -1,4 +1,4 @@
-﻿using Energix.Subscriptions.Domain.Enums;
+﻿﻿using Energix.Subscriptions.Domain.Enums;
 
 namespace Energix.Subscriptions.Domain.Events;
 
@@ -8,7 +8,7 @@ namespace Energix.Subscriptions.Domain.Events;
 public class SubscriptionCreatedDomainEvent
 {
     public Guid SubscriptionId { get; set; }
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     public PlanType PlanType { get; set; }
     public BillingPeriod BillingPeriod { get; set; }
     public decimal PriceAmount { get; set; }
@@ -17,7 +17,7 @@ public class SubscriptionCreatedDomainEvent
 
     public SubscriptionCreatedDomainEvent(
         Guid subscriptionId,
-        Guid userId,
+        int userId,
         PlanType planType,
         BillingPeriod billingPeriod,
         decimal priceAmount,

@@ -19,61 +19,61 @@ public class SetDefaultPaymentMethodCommandHandler
         var errors = new List<string>();
 
         // Validaciones
-        if (command.UserId == Guid.Empty)
+        if (command.UserId <= 0)
             errors.Add("El ID de usuario es requerido");
 
         if (command.PaymentMethodId == Guid.Empty)
-            errors.Add("El ID del método de pago es requerido");
+            errors.Add("El ID del mï¿½todo de pago es requerido");
 
         if (errors.Any())
-            return (false, "Validación fallida", errors);
+            return (false, "Validaciï¿½n fallida", errors);
 
         try
         {
-            // Buscar la suscripción con sus métodos de pago
+            // Buscar la suscripciï¿½n con sus mï¿½todos de pago
             var subscription = await _context.Subscriptions
                 .Include(s => s.PaymentMethods)
                 .FirstOrDefaultAsync(s => s.UserId == command.UserId && s.IsActive, cancellationToken);
 
             if (subscription == null)
             {
-                return (false, "Suscripción no encontrada", new List<string>
+                return (false, "Suscripciï¿½n no encontrada", new List<string>
                 {
-                    $"No se encontró suscripción activa para el usuario {command.UserId}"
+                    $"No se encontrï¿½ suscripciï¿½n activa para el usuario {command.UserId}"
                 });
             }
 
-            // Buscar el método de pago específico
+            // Buscar el mÃ©todo de pago especÃ­fico
             var paymentMethod = subscription.PaymentMethods
-                .FirstOrDefault(pm => pm.Id == command.PaymentMethodId && pm.UserId == command.UserId);
+                .FirstOrDefault(pm => pm.Id == command.PaymentMethodId);
 
             if (paymentMethod == null)
             {
-                return (false, "Método de pago no encontrado", new List<string>
+                return (false, "MÃ©todo de pago no encontrado", new List<string>
                 {
-                    $"No se encontró el método de pago {command.PaymentMethodId} para el usuario {command.UserId}"
+                    $"No se encontrÃ³ el mÃ©todo de pago {command.PaymentMethodId} en la suscripciÃ³n del usuario {command.UserId}"
                 });
             }
 
-            // Verificar si está inactivo
+            // Verificar si estï¿½ inactivo
             if (!paymentMethod.IsActive)
             {
-                return (false, "Método de pago inactivo", new List<string>
+                return (false, "Mï¿½todo de pago inactivo", new List<string>
                 {
-                    "No se puede establecer como predeterminado un método de pago inactivo"
+                    "No se puede establecer como predeterminado un mï¿½todo de pago inactivo"
                 });
             }
 
             // Verificar si ya es el predeterminado
             if (paymentMethod.IsDefault)
             {
-                return (false, "Ya es el método predeterminado", new List<string>
+                return (false, "Ya es el mï¿½todo predeterminado", new List<string>
                 {
-                    "Este método de pago ya es el predeterminado"
+                    "Este mï¿½todo de pago ya es el predeterminado"
                 });
             }
 
-            // Desactivar el método predeterminado anterior
+            // Desactivar el mï¿½todo predeterminado anterior
             var currentDefault = subscription.PaymentMethods
                 .FirstOrDefault(pm => pm.IsDefault && pm.IsActive);
 
@@ -82,13 +82,13 @@ public class SetDefaultPaymentMethodCommandHandler
                 currentDefault.SetAsNonDefault();
             }
 
-            // Establecer el nuevo método como predeterminado
+            // Establecer el nuevo mï¿½todo como predeterminado
             paymentMethod.SetAsDefault();
 
             // Guardar cambios
             await _context.SaveChangesAsync(cancellationToken);
 
-            return (true, "Método de pago establecido como predeterminado exitosamente", new List<string>());
+            return (true, "Mï¿½todo de pago establecido como predeterminado exitosamente", new List<string>());
         }
         catch (Exception ex)
         {

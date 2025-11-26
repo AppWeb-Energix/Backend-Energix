@@ -8,14 +8,14 @@ public class SubscribeCommandValidator
     {
         var errors = new List<string>();
 
-        if (command.UserId == Guid.Empty)
+        if (command.UserId <= 0)
             errors.Add("El ID de usuario es requerido");
 
         if (!Enum.IsDefined(typeof(PlanType), command.PlanType))
-            errors.Add($"Plan inválido. Planes válidos: {string.Join(", ", Enum.GetNames(typeof(PlanType)))}");
+            errors.Add($"Plan invï¿½lido. Planes vï¿½lidos: {string.Join(", ", Enum.GetNames(typeof(PlanType)))}");
 
         if (!Enum.IsDefined(typeof(BillingPeriod), command.BillingPeriod))
-            errors.Add($"Periodo de facturación inválido. Valores válidos: {string.Join(", ", Enum.GetNames(typeof(BillingPeriod)))}");
+            errors.Add($"Periodo de facturaciï¿½n invï¿½lido. Valores vï¿½lidos: {string.Join(", ", Enum.GetNames(typeof(BillingPeriod)))}");
 
         return errors;
     }

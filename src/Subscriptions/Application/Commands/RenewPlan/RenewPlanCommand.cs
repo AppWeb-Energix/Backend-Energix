@@ -5,7 +5,5 @@ namespace Energix.Subscriptions.Application.Commands.RenewPlan;
 /// </summary>
 public class RenewPlanCommand
 {
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 }
-
-

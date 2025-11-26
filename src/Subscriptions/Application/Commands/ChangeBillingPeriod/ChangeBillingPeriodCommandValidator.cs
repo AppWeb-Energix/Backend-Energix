@@ -8,11 +8,11 @@ public class ChangeBillingPeriodCommandValidator
     {
         var errors = new List<string>();
 
-        if (command.UserId == Guid.Empty)
+        if (command.UserId <= 0)
             errors.Add("El ID de usuario es requerido");
 
         if (!Enum.IsDefined(typeof(BillingPeriod), command.NewBillingPeriod))
-            errors.Add($"Periodo de facturación inválido. Valores válidos: {string.Join(", ", Enum.GetNames(typeof(BillingPeriod)))}");
+            errors.Add($"Periodo de facturaciï¿½n invï¿½lido. Valores vï¿½lidos: {string.Join(", ", Enum.GetNames(typeof(BillingPeriod)))}");
 
         return errors;
     }

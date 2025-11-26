@@ -19,7 +19,7 @@ public class RemovePaymentMethodCommandHandler
         var errors = new List<string>();
 
         // Validaciones
-        if (command.UserId == Guid.Empty)
+        if (command.UserId <= 0)
             errors.Add("El ID de usuario es requerido");
 
         if (command.PaymentMethodId == Guid.Empty)

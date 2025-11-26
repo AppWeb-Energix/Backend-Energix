@@ -19,33 +19,33 @@ public class CancelPlanCommandHandler
         var errors = new List<string>();
 
         // Validaciones
-        if (command.UserId == Guid.Empty)
+        if (command.UserId <= 0)
             errors.Add("El ID de usuario es requerido");
 
         if (errors.Any())
-            return (false, "Validación fallida", errors);
+            return (false, "Validaciï¿½n fallida", errors);
 
         try
         {
-            // Buscar la suscripción activa
+            // Buscar la suscripciï¿½n activa
             var subscription = await _context.Subscriptions
                 .FirstOrDefaultAsync(s => s.UserId == command.UserId && s.IsActive, cancellationToken);
 
             if (subscription == null)
             {
-                return (false, "Suscripción no encontrada", new List<string>
+                return (false, "Suscripciï¿½n no encontrada", new List<string>
                 {
-                    $"No se encontró suscripción activa para el usuario {command.UserId}"
+                    $"No se encontrï¿½ suscripciï¿½n activa para el usuario {command.UserId}"
                 });
             }
 
-            // Cancelar la suscripción
+            // Cancelar la suscripciï¿½n
             subscription.Cancel();
 
             await _context.SaveChangesAsync(cancellationToken);
 
             return (true, 
-                "Suscripción cancelada exitosamente. El plan permanecerá activo hasta el final del período de facturación.", 
+                "Suscripciï¿½n cancelada exitosamente. El plan permanecerï¿½ activo hasta el final del perï¿½odo de facturaciï¿½n.", 
                 new List<string>());
         }
         catch (Exception ex)

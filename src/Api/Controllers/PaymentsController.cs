@@ -96,7 +96,7 @@ public class PaymentsController : ControllerBase
     [HttpGet("user/{userId}/transactions")]
     [ProducesResponseType(typeof(List<PaymentTransaction>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserTransactions(
-        Guid userId,
+        int userId,
         CancellationToken cancellationToken = default)
     {
         var transactions = await _paymentGateway.GetUserTransactionsAsync(userId);
@@ -109,7 +109,7 @@ public class PaymentsController : ControllerBase
     [HttpGet("user/{userId}/balance")]
     [ProducesResponseType(typeof(BalanceResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserBalance(
-        Guid userId,
+        int userId,
         [FromQuery] string currency = "USD",
         CancellationToken cancellationToken = default)
     {
@@ -154,7 +154,7 @@ public class RefundRequest
 
 public class BalanceResponse
 {
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     public decimal Balance { get; set; }
     public string Currency { get; set; } = string.Empty;
 }

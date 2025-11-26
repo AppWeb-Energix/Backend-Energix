@@ -146,7 +146,7 @@ public class FakePaymentGateway : IPaymentGateway
     /// <summary>
     /// Obtiene todas las transacciones de un usuario
     /// </summary>
-    public async Task<List<PaymentTransaction>> GetUserTransactionsAsync(Guid userId)
+    public async Task<List<PaymentTransaction>> GetUserTransactionsAsync(int userId)
     {
         await Task.Delay(200);
         return _transactions.Where(t => t.UserId == userId)
@@ -157,7 +157,7 @@ public class FakePaymentGateway : IPaymentGateway
     /// <summary>
     /// Obtiene el balance de un usuario
     /// </summary>
-    public Task<decimal> GetUserBalanceAsync(Guid userId, string currency = "USD")
+    public Task<decimal> GetUserBalanceAsync(int userId, string currency = "USD")
     {
         var key = $"{userId}_{currency}";
         return Task.FromResult(_balances.GetValueOrDefault(key, 0));
@@ -212,8 +212,8 @@ public interface IPaymentGateway
     Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request);
     Task<PaymentResult> ProcessRefundAsync(string transactionId, decimal amount);
     Task<PaymentTransaction?> GetTransactionAsync(string transactionId);
-    Task<List<PaymentTransaction>> GetUserTransactionsAsync(Guid userId);
-    Task<decimal> GetUserBalanceAsync(Guid userId, string currency = "USD");
+    Task<List<PaymentTransaction>> GetUserTransactionsAsync(int userId);
+    Task<decimal> GetUserBalanceAsync(int userId, string currency = "USD");
     Task<bool> ValidateCardAsync(string cardNumber, int expiryMonth, int expiryYear, string cvv);
 }
 
@@ -222,7 +222,7 @@ public interface IPaymentGateway
 /// </summary>
 public class PaymentRequest
 {
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "USD";
     public string CardNumber { get; set; } = string.Empty;
@@ -275,7 +275,7 @@ public class PaymentResult
 public class PaymentTransaction
 {
     public string TransactionId { get; set; } = string.Empty;
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "USD";
     public string CardLast4 { get; set; } = string.Empty;

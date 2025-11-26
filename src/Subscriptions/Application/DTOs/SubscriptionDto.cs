@@ -3,7 +3,7 @@ namespace Energix.Subscriptions.Application.DTOs;
 public class SubscriptionDto
 {
     public Guid Id { get; set; }
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     public string PlanType { get; set; } = string.Empty;
     public string PlanDisplayName { get; set; } = string.Empty;
     public string BillingPeriod { get; set; } = string.Empty;

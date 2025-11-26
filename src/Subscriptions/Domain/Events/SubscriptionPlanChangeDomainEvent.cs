@@ -8,7 +8,7 @@ namespace Energix.Subscriptions.Domain.Events;
 public class SubscriptionPlanChangeDomainEvent
 {
     public Guid SubscriptionId { get; set; }
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     public PlanType OldPlanType { get; set; }
     public PlanType NewPlanType { get; set; }
     public BillingPeriod OldBillingPeriod { get; set; }
@@ -22,7 +22,7 @@ public class SubscriptionPlanChangeDomainEvent
 
     public SubscriptionPlanChangeDomainEvent(
         Guid subscriptionId,
-        Guid userId,
+        int userId,
         PlanType oldPlanType,
         PlanType newPlanType,
         BillingPeriod oldBillingPeriod,

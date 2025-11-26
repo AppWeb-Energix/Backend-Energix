@@ -72,7 +72,7 @@ public class PaymentMethodsController : ControllerBase
     [HttpGet("user/{userId}")]
     [ProducesResponseType(typeof(List<PaymentMethodDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPaymentMethodsByUser(
-        Guid userId,
+        int userId,
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
@@ -97,7 +97,7 @@ public class PaymentMethodsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var paymentMethod = await _getPaymentMethodsByUserHandler.HandleAsync(
-            new GetPaymentMethodsByUserQuery { UserId = Guid.Empty },
+            new GetPaymentMethodsByUserQuery { UserId = 0 },
             cancellationToken);
 
         var method = paymentMethod.FirstOrDefault(pm => pm.Id == id);
@@ -117,7 +117,7 @@ public class PaymentMethodsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RemovePaymentMethod(
         Guid paymentMethodId,
-        [FromQuery] Guid userId,
+        [FromQuery] int userId,
         CancellationToken cancellationToken = default)
     {
         var command = new RemovePaymentMethodCommand
@@ -153,7 +153,7 @@ public class PaymentMethodsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SetDefaultPaymentMethod(
         Guid paymentMethodId,
-        [FromQuery] Guid userId,
+        [FromQuery] int userId,
         CancellationToken cancellationToken = default)
     {
         var command = new SetDefaultPaymentMethodCommand
@@ -221,7 +221,7 @@ public class SubscriptionsController : ControllerBase
     [ProducesResponseType(typeof(SubscriptionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetSubscriptionByUser(
-        Guid userId,
+        int userId,
         [FromQuery] bool includePaymentMethods = true,
         CancellationToken cancellationToken = default)
     {
@@ -329,20 +329,20 @@ public class SubscriptionsController : ControllerBase
 public class ChangePlanResponse
 {
     public string Message { get; set; } = string.Empty;
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     public string NewPlanType { get; set; } = string.Empty;
 }
 
 public class RenewPlanResponse
 {
     public string Message { get; set; } = string.Empty;
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 }
 
 public class CancelPlanResponse
 {
     public string Message { get; set; } = string.Empty;
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 }
 
 public class AddPaymentMethodResponse
@@ -356,4 +356,3 @@ public class ErrorResponse
     public string Message { get; set; } = string.Empty;
     public List<string> Errors { get; set; } = new();
 }
-

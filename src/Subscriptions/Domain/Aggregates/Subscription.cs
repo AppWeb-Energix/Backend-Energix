@@ -7,7 +7,7 @@ namespace Energix.Subscriptions.Domain.Aggregates;
 public class Subscription
 {
     public Guid Id { get; private set; }
-    public Guid UserId { get; private set; }
+    public int UserId { get; private set; }
     public PlanType PlanType { get; private set; }
     public BillingPeriod BillingPeriod { get; private set; }
     public Money Price { get; private set; }
@@ -25,7 +25,7 @@ public class Subscription
     private Subscription() { }
 
     private Subscription(
-        Guid userId, 
+        int userId, 
         PlanType planType, 
         BillingPeriod billingPeriod,
         Money price)
@@ -44,12 +44,12 @@ public class Subscription
     }
 
     public static Subscription Create(
-        Guid userId, 
+        int userId, 
         PlanType planType, 
         BillingPeriod billingPeriod = BillingPeriod.Monthly)
     {
-        if (userId == Guid.Empty)
-            throw new ArgumentException("El UserId no puede estar vacío");
+        if (userId <= 0)
+            throw new ArgumentException("El UserId debe ser mayor que cero");
 
         var planSchema = PlanSchema.GetPlanSchema(planType);
         var price = planSchema.GetPrice(billingPeriod);
