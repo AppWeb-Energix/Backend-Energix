@@ -29,9 +29,10 @@ public class UserCommandService : IUserCommandService
     public async Task<(bool Success, string Message, int? UserId)> SignUpAsync(
         string email,
         string password,
-        string username,
         string firstName,
-        string lastName)
+        string lastName,
+        string dni,
+        string district)
     {
         // Validations
         if (string.IsNullOrWhiteSpace(email))
@@ -40,21 +41,36 @@ public class UserCommandService : IUserCommandService
         if (string.IsNullOrWhiteSpace(password))
             return (false, "La contraseña es requerida", null);
 
-        if (string.IsNullOrWhiteSpace(username))
-            return (false, "El nombre de usuario es requerido", null);
+        if (string.IsNullOrWhiteSpace(firstName))
+            return (false, "El nombre es requerido", null);
+
+        if (string.IsNullOrWhiteSpace(lastName))
+            return (false, "El apellido es requerido", null);
+
+        if (string.IsNullOrWhiteSpace(dni))
+            return (false, "El DNI es requerido", null);
+
+        if (string.IsNullOrWhiteSpace(district))
+            return (false, "El distrito es requerido", null);
 
         email = email.Trim().ToLowerInvariant();
-        username = username.Trim();
+        dni = dni.Trim();
+        
+        if (dni.Length != 8 || !dni.All(char.IsDigit))
+            return (false, "El DNI debe tener exactamente 8 dígitos", null);
 
-        // Check if user already exists
+        // Check if user already exists by email
         if (await _userRepository.ExistsByEmailAsync(email))
             return (false, "Ya existe un usuario con ese email", null);
 
-        if (await _userRepository.ExistsByUsernameAsync(username))
-            return (false, "Ya existe un usuario con ese nombre de usuario", null);
+        // Note: DNI uniqueness is enforced at database level
+        // (see UserEntityConfiguration with HasIndex(u => u.Dni).IsUnique())
 
         // Hash password
         var passwordHash = _hashingService.HashPassword(password);
+
+        // Generate username from email (e.g., "john.doe@example.com" -> "john.doe")
+        var username = email.Split('@')[0];
 
         // Create user
         var user = new User
@@ -64,6 +80,8 @@ public class UserCommandService : IUserCommandService
             PasswordHash = passwordHash,
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
+            Dni = dni,
+            District = district.Trim(),
             CreatedAt = DateTime.UtcNow
         };
 

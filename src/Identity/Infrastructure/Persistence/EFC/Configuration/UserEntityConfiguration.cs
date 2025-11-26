@@ -43,6 +43,16 @@ public class UserEntityConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(u => u.Dni)
+            .HasColumnName("dni")
+            .HasMaxLength(8)
+            .IsRequired();
+
+        builder.Property(u => u.District)
+            .HasColumnName("district")
+            .HasMaxLength(100)
+            .IsRequired();
+
         builder.Property(u => u.CreatedAt)
             .HasColumnName("created_at")
             .IsRequired();
@@ -59,5 +69,9 @@ public class UserEntityConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(u => u.Email)
             .IsUnique()
             .HasDatabaseName("idx_users_email_unique");
+
+        builder.HasIndex(u => u.Dni)
+            .IsUnique()
+            .HasDatabaseName("idx_users_dni_unique");
     }
 }

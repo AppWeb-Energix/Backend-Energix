@@ -53,9 +53,10 @@ public class AuthenticationController : ControllerBase
         var (success, message, userId) = await _userCommandService.SignUpAsync(
             request.Email,
             request.Password,
-            request.Username,
             request.FirstName,
-            request.LastName
+            request.LastName,
+            request.Dni,
+            request.District
         );
 
         if (!success)

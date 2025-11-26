@@ -6,8 +6,9 @@
 public record SignUpRequest(
     string Email,
     string Password,
-    string Username,
     string FirstName,
-    string LastName
+    string LastName,
+    string Dni,
+    string District
 );
 

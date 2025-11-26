@@ -6,11 +6,12 @@
 public interface IUserCommandService
 {
     Task<(bool Success, string Message, int? UserId)> SignUpAsync(
-        string email,
+        string email, 
         string password,
-        string username,
         string firstName,
-        string lastName);
+        string lastName,
+        string dni,
+        string district);
 
     Task<(bool Success, string Message, string? Token, object? User)> SignInAsync(
         string email,

@@ -16,6 +16,8 @@ public static class UserResourceAssembler
             user.Username,
             user.FirstName,
             user.LastName,
+            user.Dni,
+            user.District,
             user.CreatedAt
         );
     }

@@ -9,6 +9,8 @@ public record UserResource(
     string Username,
     string FirstName,
     string LastName,
+    string Dni,
+    string District,
     DateTime CreatedAt
 );
 
