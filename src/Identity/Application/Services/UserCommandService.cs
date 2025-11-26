@@ -145,7 +145,9 @@ public class UserCommandService : IUserCommandService
             email = user.Email,
             username = user.Username,
             firstName = user.FirstName,
-            lastName = user.LastName
+            lastName = user.LastName,
+            dni = user.Dni,
+            district = user.District
         };
 
         return (true, "Login exitoso", token, userDto);
