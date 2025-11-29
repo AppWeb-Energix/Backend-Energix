@@ -98,17 +98,36 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Energix API", Version = "v1" });
     var securityScheme = new OpenApiSecurityScheme
     {
+        Reference = new OpenApiReference()
+        {
+            Id = "Bearer"
+        },
+        Scheme = "Bearer",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+    };
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
+        Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Ingrese 'Bearer {token}'"
-    };
-    c.AddSecurityDefinition("Bearer", securityScheme);
+        Description = "Ingrese solo el token JWT",
+    });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { securityScheme, new[] { "Bearer" } }
+        {
+            new OpenApiSecurityScheme()
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 

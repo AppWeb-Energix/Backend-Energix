@@ -1,8 +1,6 @@
 ﻿using Energix.API.Identity.Domain.Services;
 using Energix.API.Identity.Interfaces.REST.DTOs;
-using Energix.Subscriptions.Application.Commands.Subscribe;
 using Energix.Subscriptions.Application.Queries.GetSubscriptionByUser;
-using Energix.Subscriptions.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,85 +11,31 @@ namespace Energix.API.Controllers;
 public class SessionController : ControllerBase
 {
     private readonly IUserCommandService _userCommandService;
+    private readonly ITokenService _tokenService;
     private readonly GetSubscriptionByUserQueryHandler _getSubscriptionQueryHandler;
-    private readonly SubscribeCommandHandler _subscribeCommandHandler;
 
     public SessionController(
         IUserCommandService userCommandService,
-        GetSubscriptionByUserQueryHandler getSubscriptionQueryHandler,
-        SubscribeCommandHandler subscribeCommandHandler)
+        ITokenService tokenService,
+        GetSubscriptionByUserQueryHandler getSubscriptionQueryHandler)
     {
         _userCommandService = userCommandService;
+        _tokenService = tokenService;
         _getSubscriptionQueryHandler = getSubscriptionQueryHandler;
-        _subscribeCommandHandler = subscribeCommandHandler;
     }
     
-    [HttpPost("sign-in")]
-    [AllowAnonymous]
-    public async Task<IActionResult> SignIn([FromBody] SignInRequest request, CancellationToken cancellationToken = default)
-    {
-        if (request == null)
-            return BadRequest(new { error = "Request body es requerido" });
-        
-        var (success, message, token, user) = await _userCommandService.SignInAsync(
-            request.Email,
-            request.Password
-        );
-
-        if (!success)
-            return Unauthorized(new { error = message });
-        
-        // Extraer id del objeto anónimo
-        int userId;
-        try
-        {
-            var userDynamic = (dynamic)user!;
-            userId = (int)userDynamic.id;
-        }
-        catch
-        {
-            return StatusCode(500, new { error = "Error al procesar información del usuario" });
-        }
-
-        var subscription = await _getSubscriptionQueryHandler.HandleAsync(
-            new GetSubscriptionByUserQuery 
-            { 
-                UserId = userId,
-                IncludePaymentMethods = false 
-            },
-            cancellationToken
-        );
-        
-        var planInfo = subscription != null 
-            ? new
-            {
-                type = subscription.PlanType,
-                uiKey = GetPlanUiKey(subscription.PlanType),
-                displayName = subscription.PlanDisplayName
-            }
-            : new
-            {
-                type = "Basic",
-                uiKey = "basic",
-                displayName = "Basic Plan"
-            };
-
-        return Ok(new
-        {
-            token,
-            user,
-            plan = planInfo
-        });
-    }
-    
+    /// <summary>
+    /// Registra un nuevo usuario y retorna JWT sin información de plan (planSelectionPending=true)
+    /// </summary>
     [HttpPost("sign-up")]
     [AllowAnonymous]
     public async Task<IActionResult> SignUp([FromBody] SignUpRequest request, CancellationToken cancellationToken = default)
     {
+        // 1. Validar request
         if (request == null)
             return BadRequest(new { error = "Request body es requerido" });
 
-        // 1. Registrar usuario (Identity BC)
+        // 2. Registrar usuario
         var (success, message, userId) = await _userCommandService.SignUpAsync(
             request.Email,
             request.Password,
@@ -106,77 +50,156 @@ public class SessionController : ControllerBase
 
         if (userId == null)
             return StatusCode(500, new { error = "Error al crear usuario" });
-        
-        var subscribeCommand = new SubscribeCommand
-        {
-            UserId = userId.Value,
-            PlanType = PlanType.Basic,
-            BillingPeriod = BillingPeriod.Monthly
-        };
 
-        var (subSuccess, subMessage, _, _) = 
-            await _subscribeCommandHandler.HandleAsync(subscribeCommand, cancellationToken);
-        
-        if (!subSuccess)
-        {
-            Console.WriteLine($"Warning: No se pudo crear suscripción para usuario {userId}: {subMessage}");
-        }
-        
-        var (signInSuccess, _, token, user) = await _userCommandService.SignInAsync(
+        // 3. NO crear suscripción aquí (según context2.md)
+
+        // 4. Intentar hacer SignIn automático para obtener token y user
+        var (signInSuccess, _, _, user) = await _userCommandService.SignInAsync(
             request.Email,
             request.Password
         );
 
         if (!signInSuccess)
         {
-            return Created($"/api/v1/users/{userId}", new 
-            { 
-                id = userId, 
-                message = "Usuario creado exitosamente. Por favor inicie sesión.",
-                warning = "No se pudo generar token automáticamente"
+            // Si falla el auto-login, responder 201 con mensaje
+            return StatusCode(201, new
+            {
+                id = userId.Value,
+                message = "Usuario creado, inicie sesión"
             });
         }
-        
-        // Extraer id del objeto anónimo
+
+        // Extraer información del usuario
         int userIdFromSignIn;
+        string email;
+        string username;
         try
         {
             var userDynamic = (dynamic)user!;
             userIdFromSignIn = (int)userDynamic.id;
+            email = (string)userDynamic.email;
+            username = $"{userDynamic.firstName} {userDynamic.lastName}";
         }
         catch
         {
             return StatusCode(500, new { error = "Error al procesar información del usuario" });
         }
 
+        // 5. Generar token sin claims de plan (planSelectionPending=true)
+        var token = _tokenService.GenerateToken(
+            userIdFromSignIn,
+            email,
+            username,
+            null, // Sin planType
+            null, // Sin billingPeriod
+            true  // planSelectionPending = true
+        );
+
+        // Responder 201 con payload coherente con session/sign-in
+        return StatusCode(201, new
+        {
+            token,
+            user,
+            plan = (object?)null,
+            planSelectionPending = true,
+            message = "Usuario registrado exitosamente"
+        });
+    }
+    
+    /// <summary>
+    /// Inicia sesión y retorna JWT con información de suscripción si existe
+    /// </summary>
+    [HttpPost("sign-in")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SignIn([FromBody] SignInRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+            return BadRequest(new { error = "Request body es requerido" });
+        
+        // Autenticar usuario (sin generar token aún)
+        var (success, message, _, user) = await _userCommandService.SignInAsync(
+            request.Email,
+            request.Password
+        );
+
+        if (!success)
+            return Unauthorized(new { error = message });
+        
+        // Extraer información del usuario
+        int userId;
+        string email;
+        string username;
+        try
+        {
+            var userDynamic = (dynamic)user!;
+            userId = (int)userDynamic.id;
+            email = (string)userDynamic.email;
+            username = $"{userDynamic.firstName} {userDynamic.lastName}";
+        }
+        catch
+        {
+            return StatusCode(500, new { error = "Error al procesar información del usuario" });
+        }
+
+        // Consultar suscripción
         var subscription = await _getSubscriptionQueryHandler.HandleAsync(
             new GetSubscriptionByUserQuery 
             { 
-                UserId = userIdFromSignIn,
+                UserId = userId,
                 IncludePaymentMethods = false 
             },
             cancellationToken
         );
         
-        var planInfo = subscription != null 
-            ? new
+        // Generar token con o sin información de plan
+        string token;
+        object? planInfo;
+        bool planSelectionPending;
+
+        if (subscription != null)
+        {
+            // Usuario tiene suscripción activa
+            token = _tokenService.GenerateToken(
+                userId, 
+                email, 
+                username, 
+                subscription.PlanType, 
+                subscription.BillingPeriod,
+                false
+            );
+
+            planInfo = new
             {
                 type = subscription.PlanType,
                 uiKey = GetPlanUiKey(subscription.PlanType),
-                displayName = subscription.PlanDisplayName
-            }
-            : new
-            {
-                type = "Basic",
-                uiKey = "basic",
-                displayName = "Basic Plan"
+                displayName = subscription.PlanDisplayName,
+                billingPeriod = subscription.BillingPeriod
             };
 
-        return Created($"/api/v1/users/{userId}", new
+            planSelectionPending = false;
+        }
+        else
+        {
+            // Usuario sin suscripción
+            token = _tokenService.GenerateToken(
+                userId, 
+                email, 
+                username, 
+                null, 
+                null,
+                true
+            );
+
+            planInfo = null;
+            planSelectionPending = true;
+        }
+
+        return Ok(new
         {
             token,
             user,
-            plan = planInfo
+            plan = planInfo,
+            planSelectionPending
         });
     }
     

@@ -9,5 +9,6 @@ public interface ITokenService
 {
     string GenerateToken(int userId, string email, string username, string role);
     string GenerateToken(IEnumerable<Claim> claims);
+    string GenerateToken(int userId, string email, string username, string? planType, string? billingPeriod, bool planSelectionPending);
 }
 
