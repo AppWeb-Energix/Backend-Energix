@@ -13,6 +13,7 @@ using Energix.API.Identity.Infrastructure.Tokens;
 using Energix.API.Identity.Infrastructure.Authorization.Middleware;
 using Energix.API.Personalization.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
+using Energix.API.AdminManagement.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -23,7 +24,7 @@ var configuration = builder.Configuration;
 // Get connection string from configuration (appsettings.json / environment)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
-                  ?? "server=localhost;port=3306;database=energix;user=root;password=3xp3ri3nciA*";
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=lucas1";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
@@ -116,6 +117,9 @@ builder.Services.AddSwaggerGen(c =>
 
 // Registrar módulo de Subscriptions
 builder.Services.AddSubscriptionsInfrastructure(configuration);
+
+// Registrar módulo de AdminManagement
+builder.Services.AddAdminManagementServices(configuration);
 
 var app = builder.Build();
 

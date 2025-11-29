@@ -108,6 +108,8 @@ namespace Energix.API.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     district = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    role = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Customer")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },

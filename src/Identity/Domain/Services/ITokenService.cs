@@ -7,7 +7,7 @@ namespace Energix.API.Identity.Domain.Services;
 /// </summary>
 public interface ITokenService
 {
-    string GenerateToken(int userId, string email, string username);
+    string GenerateToken(int userId, string email, string username, string role);
     string GenerateToken(IEnumerable<Claim> claims);
 }
 

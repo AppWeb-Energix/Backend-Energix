@@ -53,6 +53,12 @@ public class UserEntityConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(u => u.Role)
+            .HasColumnName("role")
+            .HasColumnType("varchar(20)")
+            .IsRequired()
+            .HasDefaultValue("Customer");
+
         builder.Property(u => u.CreatedAt)
             .HasColumnName("created_at")
             .IsRequired();

@@ -136,8 +136,8 @@ public class UserCommandService : IUserCommandService
         if (!verified)
             return (false, "Credenciales inválidas", null, null);
 
-        // Generate token
-        var token = _tokenService.GenerateToken(user.Id, user.Email, user.Username);
+        // Generate token with role
+        var token = _tokenService.GenerateToken(user.Id, user.Email, user.Username, user.Role);
 
         var userDto = new
         {
@@ -147,7 +147,8 @@ public class UserCommandService : IUserCommandService
             firstName = user.FirstName,
             lastName = user.LastName,
             dni = user.Dni,
-            district = user.District
+            district = user.District,
+            role = user.Role
         };
 
         return (true, "Login exitoso", token, userDto);
