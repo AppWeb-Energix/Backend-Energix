@@ -32,6 +32,32 @@ public class TokenService : ITokenService
         return GenerateToken(claims);
     }
 
+    public string GenerateToken(int userId, string email, string username, string? planType, string? billingPeriod, bool planSelectionPending)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, email),
+            new Claim("username", username),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        // Agregar claims de suscripción si existen
+        if (!string.IsNullOrEmpty(planType))
+        {
+            claims.Add(new Claim("planType", planType));
+        }
+
+        if (!string.IsNullOrEmpty(billingPeriod))
+        {
+            claims.Add(new Claim("billingPeriod", billingPeriod));
+        }
+
+        claims.Add(new Claim("planSelectionPending", planSelectionPending.ToString().ToLower()));
+
+        return GenerateToken(claims);
+    }
+
     public string GenerateToken(IEnumerable<Claim> claims)
     {
         if (string.IsNullOrEmpty(_settings.Key))
