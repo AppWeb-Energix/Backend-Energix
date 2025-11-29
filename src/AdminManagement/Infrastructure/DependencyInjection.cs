@@ -1,4 +1,4 @@
-﻿using Energix.API.AdminManagement.Application.QueryServices;
+﻿﻿using Energix.API.AdminManagement.Application.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,8 +13,10 @@ public static class DependencyInjection
         this IServiceCollection services, 
         IConfiguration configuration)
     {
-        // Register Query Services
-        services.AddScoped<SystemStatsQueryService>();
+        // Register Application Services
+        services.AddScoped<SystemHealthService>();
+        services.AddScoped<AdminDashboardService>();
+        services.AddScoped<SimpleAuditService>();
 
         return services;
     }

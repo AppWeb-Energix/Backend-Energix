@@ -22,6 +22,30 @@ namespace Energix.API.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("Energix.API.AdminManagement.Domain.Entities.SimpleAuditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("message");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("simple_audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("Energix.API.DeviceManagement.Domain.Model.Aggregates.Device", b =>
                 {
                     b.Property<int>("Id")

@@ -137,6 +137,22 @@ namespace Energix.API.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "simple_audit_logs",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    message = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_simple_audit_logs", x => x.id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "devices",
                 columns: table => new
                 {
@@ -258,6 +274,9 @@ namespace Energix.API.Migrations
 
             migrationBuilder.DropTable(
                 name: "zones");
+
+            migrationBuilder.DropTable(
+                name: "simple_audit_logs");
         }
     }
 }
