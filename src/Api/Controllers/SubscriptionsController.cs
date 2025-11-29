@@ -120,32 +120,50 @@ public class SubscriptionsController : ControllerBase
             var planSchema = Energix.Subscriptions.Domain.Schemas.PlanSchema.GetPlanSchema(request.PlanType);
             var amount = planSchema.GetPrice(request.BillingPeriod);
 
-            // 4. Procesar pago
-            var paymentRequest = new PaymentRequest
+            // 4. Procesar pago (solo si amount > 0)
+            if (amount.Amount > 0)
             {
-                UserId = userId.Value,
-                Amount = amount.Amount,
-                Currency = amount.Currency,
-                CardNumber = request.CardNumber,
-                ExpiryMonth = request.ExpiryMonth,
-                ExpiryYear = request.ExpiryYear,
-                Cvv = request.Cvv,
-                Description = existingSubscription == null 
-                    ? $"Suscripción a plan {request.PlanType}" 
-                    : $"Cambio a plan {request.PlanType}"
-            };
-
-            var paymentResult = await _paymentGateway.ProcessPaymentAsync(paymentRequest);
-
-            if (!paymentResult.IsSuccess)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return BadRequest(new ErrorResponse
+                // Validar que los campos de tarjeta estén presentes
+                if (string.IsNullOrWhiteSpace(request.CardNumber) || 
+                    !request.ExpiryMonth.HasValue || 
+                    !request.ExpiryYear.HasValue || 
+                    string.IsNullOrWhiteSpace(request.Cvv))
                 {
-                    Message = "Error al procesar el pago",
-                    Errors = new List<string> { paymentResult.Message, paymentResult.ErrorCode }
-                });
+                    await transaction.RollbackAsync(cancellationToken);
+                    return BadRequest(new ErrorResponse
+                    {
+                        Message = "Los datos de tarjeta son requeridos para planes de pago",
+                        Errors = new List<string> { "CardNumber, ExpiryMonth, ExpiryYear y Cvv son obligatorios para planes con costo" }
+                    });
+                }
+
+                var paymentRequest = new PaymentRequest
+                {
+                    UserId = userId.Value,
+                    Amount = amount.Amount,
+                    Currency = amount.Currency,
+                    CardNumber = request.CardNumber!,
+                    ExpiryMonth = request.ExpiryMonth.Value,
+                    ExpiryYear = request.ExpiryYear.Value,
+                    Cvv = request.Cvv!,
+                    Description = existingSubscription == null 
+                        ? $"Suscripción a plan {request.PlanType}" 
+                        : $"Cambio a plan {request.PlanType}"
+                };
+
+                var paymentResult = await _paymentGateway.ProcessPaymentAsync(paymentRequest);
+
+                if (!paymentResult.IsSuccess)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return BadRequest(new ErrorResponse
+                    {
+                        Message = "Error al procesar el pago",
+                        Errors = new List<string> { paymentResult.Message, paymentResult.ErrorCode }
+                    });
+                }
             }
+            // Si amount == 0, no validar tarjeta ni procesar pago (plan gratuito)
 
             // 5. Crear o cambiar suscripción
             string message;
@@ -347,10 +365,10 @@ public class UpgradeSubscriptionRequest
 {
     public PlanType PlanType { get; set; }
     public BillingPeriod BillingPeriod { get; set; } = BillingPeriod.Monthly;
-    public string CardNumber { get; set; } = string.Empty;
-    public int ExpiryMonth { get; set; }
-    public int ExpiryYear { get; set; }
-    public string Cvv { get; set; } = string.Empty;
+    public string? CardNumber { get; set; }
+    public int? ExpiryMonth { get; set; }
+    public int? ExpiryYear { get; set; }
+    public string? Cvv { get; set; }
 }
 
 public class UpgradeSubscriptionResponse
