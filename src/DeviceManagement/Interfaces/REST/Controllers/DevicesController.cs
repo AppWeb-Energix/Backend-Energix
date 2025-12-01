@@ -26,11 +26,37 @@ public class DevicesController : ControllerBase
         _queryService = queryService;
     }
 
-    /// <summary>
-    /// It retrieves all of a user's devices
-    /// </summary>
-    /// <param name="userId">User ID</param>
-    /// <param name="type">Device type (optional): manual, plug, sensor</param>
+    private static string? NormalizePlan(string? plan) =>
+        string.IsNullOrWhiteSpace(plan) ||
+        string.Equals(plan, "undefined", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(plan, "null", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : plan;
+
+    private static PlanType ResolvePlanOrInfer(string? plan, string resourceType)
+    {
+        var normalizedPlan = NormalizePlan(plan);
+
+        if (!string.IsNullOrEmpty(normalizedPlan))
+            return PlanTypeExtensions.ParsePlanType(normalizedPlan);
+
+        return resourceType.ToLowerInvariant() switch
+        {
+            "manual" => PlanType.Basic,
+            "plug" => PlanType.Student,
+            "sensor" => PlanType.Family,
+            _ => PlanTypeExtensions.ParsePlanType(resourceType)
+        };
+    }
+
+    private static PlanType ResolvePlanOrDefault(string? plan, PlanType defaultPlan)
+    {
+        var normalizedPlan = NormalizePlan(plan);
+        return string.IsNullOrEmpty(normalizedPlan)
+            ? defaultPlan
+            : PlanTypeExtensions.ParsePlanType(normalizedPlan);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetDevicesByUserId(
         [FromQuery] int userId,
@@ -52,13 +78,10 @@ public class DevicesController : ControllerBase
         var query = new GetDevicesByUserIdQuery(userId, deviceType);
         var devices = await _queryService.Handle(query);
         var resources = devices.Select(DeviceResourceFromEntityAssembler.ToResourceFromEntity);
-        
+
         return Ok(resources);
     }
 
-    /// <summary>
-    /// Get a device by your ID
-    /// </summary>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetDeviceById(int id)
     {
@@ -72,32 +95,27 @@ public class DevicesController : ControllerBase
         return Ok(resource);
     }
 
-    /// <summary>
-    /// Create a new device
-    /// </summary>
-    /// <param name="userId">User ID</param>
-    /// <param name="plan">User Plan: basic (manual), student (plug), family (sensor)
-    /// NOTE: This parameter is temporary until the Subscriptions bounded context is implemented</param>
-    /// <param name="resource">Device data
-    /// - Plan basic: name is generated automatically, requires deviceKind, monthly, estimatedCost
-    /// - Plan student/family: It allows you to customize the name; it does NOT require metric fields</param>
     [HttpPost]
     public async Task<IActionResult> CreateDevice(
-        [FromQuery] int userId,
-        [FromQuery] string plan,
+        [FromQuery] int? userId,
+        [FromQuery] string? plan,
         [FromBody] CreateDeviceResource resource)
     {
+        var resolvedUserId = userId ?? resource.UserId;
+        if (resolvedUserId == null)
+            return BadRequest(new { message = "userId es requerido (query o body)" });
+
         PlanType userPlan;
         try
         {
-            userPlan = PlanTypeExtensions.ParsePlanType(plan);
+            userPlan = ResolvePlanOrInfer(plan, resource.Type);
         }
         catch
         {
             return BadRequest(new { message = "Plan inválido. Use: basic, student, family" });
         }
 
-        var command = CreateDeviceCommandFromResourceAssembler.ToCommandFromResource(resource, userId);
+        var command = CreateDeviceCommandFromResourceAssembler.ToCommandFromResource(resource, resolvedUserId.Value);
         var result = await _commandService.Handle(command, userPlan);
 
         if (!result.Success)
@@ -107,23 +125,16 @@ public class DevicesController : ControllerBase
         return CreatedAtAction(nameof(GetDeviceById), new { id = result.Data!.Id }, deviceResource);
     }
 
-    /// <summary>
-    /// Update a device
-    /// </summary>
-    /// <param name="id">Device ID</param>
-    /// <param name="plan">User Plan: basic, student, family
-    /// NOTE: This parameter is temporary until the Subscriptions bounded context is implemented</param>
-    /// <param name="resource">Fields to be updated according to plan permissions</param>
     [HttpPatch("{id}")]
     public async Task<IActionResult> UpdateDevice(
         int id,
-        [FromQuery] string plan,
+        [FromQuery] string? plan,
         [FromBody] UpdateDeviceResource resource)
     {
         PlanType userPlan;
         try
         {
-            userPlan = PlanTypeExtensions.ParsePlanType(plan);
+            userPlan = ResolvePlanOrDefault(plan, PlanType.Family);
         }
         catch
         {
@@ -140,13 +151,21 @@ public class DevicesController : ControllerBase
         return Ok(deviceResource);
     }
 
-    /// <summary>
-    /// Remove (unlink) a device
-    /// </summary>
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteDevice(int id, [FromQuery] int userId)
+    public async Task<IActionResult> DeleteDevice(int id, [FromQuery] int? userId)
     {
-        var command = new DeleteDeviceCommand(id, userId);
+        var resolvedUserId = userId;
+
+        if (resolvedUserId == null)
+        {
+            var device = await _queryService.Handle(new GetDeviceByIdQuery(id));
+            resolvedUserId = device?.UserId;
+        }
+
+        if (resolvedUserId == null)
+            return BadRequest(new { message = "userId es requerido para eliminar el dispositivo" });
+
+        var command = new DeleteDeviceCommand(id, resolvedUserId.Value);
         var result = await _commandService.Handle(command);
 
         if (!result.Success)

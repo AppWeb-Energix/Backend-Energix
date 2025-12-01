@@ -11,7 +11,7 @@ public static class CreateZoneCommandFromResourceAssembler
     public static CreateZoneCommand ToCommandFromResource(CreateZoneResource resource, int userId)
     {
         return new CreateZoneCommand(
-            UserId: userId,
+            UserId: resource.UserId?? userId,
             Name: resource.Name
         );
     }

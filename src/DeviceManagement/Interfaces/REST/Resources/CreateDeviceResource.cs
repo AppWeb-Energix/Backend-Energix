@@ -6,6 +6,8 @@ namespace Energix.API.DeviceManagement.Interfaces.REST.Resources;
 /// Resource for creating a device
 /// </summary>
 public record CreateDeviceResource(
+    int? UserId,
+    
     [Required(ErrorMessage = "El nombre es requerido")]
     string Name,
     
