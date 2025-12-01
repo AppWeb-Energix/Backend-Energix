@@ -24,11 +24,30 @@ public class ZonesController : ControllerBase
         _queryService = queryService;
     }
 
-    /// <summary>
-    /// It retrieves all of a user's zones
-    /// </summary>
-    /// <param name="userId">User ID</param>
-    /// <param name="includeDevices">Include devices in the response</param>
+    private static string? NormalizePlan(string? plan) =>
+        string.IsNullOrWhiteSpace(plan) ||
+        string.Equals(plan, "undefined", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(plan, "null", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : plan;
+
+    private static PlanType ResolvePlanOrDefault(string? plan, PlanType defaultPlan)
+    {
+        var normalizedPlan = NormalizePlan(plan);
+
+        if (string.IsNullOrEmpty(normalizedPlan))
+            return defaultPlan;
+
+        try
+        {
+            return PlanTypeExtensions.ParsePlanType(normalizedPlan);
+        }
+        catch
+        {
+            return defaultPlan;
+        }
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetZonesByUserId(
         [FromQuery] int userId,
@@ -46,13 +65,10 @@ public class ZonesController : ControllerBase
         var query = new GetZonesByUserIdQuery(userId);
         var zones = await _queryService.Handle(query);
         var resources = zones.Select(ZoneResourceFromEntityAssembler.ToResourceFromEntity);
-        
+
         return Ok(resources);
     }
 
-    /// <summary>
-    /// You get a zone by your ID
-    /// </summary>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetZoneById(int id)
     {
@@ -66,29 +82,19 @@ public class ZonesController : ControllerBase
         return Ok(resource);
     }
 
-    /// <summary>
-    /// Create a new zone
-    /// </summary>
-    /// <param name="userId">User ID (from query)</param>
-    /// <param name="plan">User plan (from query): family</param>
-    /// <param name="resource">Area data</param>
     [HttpPost]
     public async Task<IActionResult> CreateZone(
-        [FromQuery] int userId,
-        [FromQuery] string plan,
+        [FromQuery] int? userId,
+        [FromQuery] string? plan,
         [FromBody] CreateZoneResource resource)
     {
-        PlanType userPlan;
-        try
-        {
-            userPlan = PlanTypeExtensions.ParsePlanType(plan);
-        }
-        catch
-        {
-            return BadRequest(new { message = "Plan inválido. Use: family" });
-        }
+        var resolvedUserId = userId ?? resource.UserId;
+        if (resolvedUserId == null)
+            return BadRequest(new { message = "userId es requerido (query o body)" });
 
-        var command = CreateZoneCommandFromResourceAssembler.ToCommandFromResource(resource, userId);
+        var userPlan = ResolvePlanOrDefault(plan, PlanType.Family);
+
+        var command = CreateZoneCommandFromResourceAssembler.ToCommandFromResource(resource, resolvedUserId.Value);
         var result = await _commandService.Handle(command, userPlan);
 
         if (!result.Success)
@@ -98,16 +104,24 @@ public class ZonesController : ControllerBase
         return CreatedAtAction(nameof(GetZoneById), new { id = result.Data!.Id }, zoneResource);
     }
 
-    /// <summary>
-    /// Update (rename) an area
-    /// </summary>
     [HttpPatch("{id}")]
     public async Task<IActionResult> UpdateZone(
         int id,
-        [FromQuery] int userId,
+        [FromQuery] int? userId,
         [FromBody] UpdateZoneResource resource)
     {
-        var command = RenameZoneCommandFromResourceAssembler.ToCommandFromResource(resource, id, userId);
+        var resolvedUserId = userId;
+
+        if (resolvedUserId == null)
+        {
+            var zone = await _queryService.Handle(new GetZoneByIdQuery(id));
+            resolvedUserId = zone?.UserId;
+        }
+
+        if (resolvedUserId == null)
+            return BadRequest(new { message = "userId es requerido para actualizar la zona" });
+
+        var command = RenameZoneCommandFromResourceAssembler.ToCommandFromResource(resource, id, resolvedUserId.Value);
         var result = await _commandService.Handle(command);
 
         if (!result.Success)
@@ -117,26 +131,25 @@ public class ZonesController : ControllerBase
         return Ok(zoneResource);
     }
 
-    /// <summary>
-    /// Delete a zone
-    /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteZone(
         int id,
-        [FromQuery] int userId,
-        [FromQuery] string plan)
+        [FromQuery] int? userId,
+        [FromQuery] string? plan)
     {
-        PlanType userPlan;
-        try
+        var resolvedUserId = userId;
+        if (resolvedUserId == null)
         {
-            userPlan = PlanTypeExtensions.ParsePlanType(plan);
-        }
-        catch
-        {
-            return BadRequest(new { message = "Plan inválido. Use: family" });
+            var zone = await _queryService.Handle(new GetZoneByIdQuery(id));
+            resolvedUserId = zone?.UserId;
         }
 
-        var command = new DeleteZoneCommand(id, userId);
+        if (resolvedUserId == null)
+            return BadRequest(new { message = "userId es requerido para eliminar la zona" });
+
+        var userPlan = ResolvePlanOrDefault(plan, PlanType.Family);
+
+        var command = new DeleteZoneCommand(id, resolvedUserId.Value);
         var result = await _commandService.Handle(command, userPlan);
 
         if (!result.Success)

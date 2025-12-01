@@ -18,9 +18,9 @@ public static class CreateDeviceCommandFromResourceAssembler
         {
             deviceKind = DeviceKindExtensions.ParseDeviceKind(resource.DeviceKind);
         }
-
+        var resolvedUserId = resource.UserId ?? userId;
         return new CreateDeviceCommand(
-            UserId: userId,
+            UserId: resolvedUserId,
             Name: resource.Name,
             Type: deviceType,
             DeviceKind: deviceKind,
