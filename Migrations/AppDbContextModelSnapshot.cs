@@ -413,7 +413,7 @@ namespace Energix.API.Migrations
 
                             b1.HasKey("DeviceId");
 
-                            b1.ToTable("devices");
+                            b1.ToTable("devices", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("DeviceId");
@@ -439,7 +439,7 @@ namespace Energix.API.Migrations
 
                             b1.HasKey("PaymentMethodId");
 
-                            b1.ToTable("PaymentMethods");
+                            b1.ToTable("PaymentMethods", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("PaymentMethodId");
@@ -458,7 +458,7 @@ namespace Energix.API.Migrations
 
                             b1.HasKey("PaymentMethodId");
 
-                            b1.ToTable("PaymentMethods");
+                            b1.ToTable("PaymentMethods", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("PaymentMethodId");
@@ -490,7 +490,7 @@ namespace Energix.API.Migrations
 
                             b1.HasKey("SubscriptionId");
 
-                            b1.ToTable("Subscriptions");
+                            b1.ToTable("Subscriptions", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("SubscriptionId");

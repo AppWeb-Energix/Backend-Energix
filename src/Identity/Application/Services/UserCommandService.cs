@@ -137,7 +137,7 @@ public class UserCommandService : IUserCommandService
             return (false, "Credenciales inválidas", null, null);
 
         // Generate token
-        var token = _tokenService.GenerateToken(user.Id, user.Email, user.Username);
+        var token = _tokenService.GenerateToken(user.Id, user.Email, user.Username, null, null, false);
 
         var userDto = new
         {

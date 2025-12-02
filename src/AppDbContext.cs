@@ -1,3 +1,5 @@
+using Energix.API.AdminManagement.Domain.Entities;
+using Energix.API.AdminManagement.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using Energix.API.DeviceManagement.Domain.Model.Aggregates;
 using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using Energix.API.Identity.Domain.Entities;
@@ -32,6 +34,9 @@ public class AppDbContext : DbContext
     public DbSet<Subscription> Subscriptions { get; set; } = null!;
     public DbSet<PaymentMethod> PaymentMethods { get; set; } = null!;
     
+    // DbSets - Admin Management
+    public DbSet<SimpleAuditLog> SimpleAuditLogs { get; set; } = null!;
+    
     // DbSets - Notifications
     public DbSet<Alert> Alerts { get; set; } = null!;
 
@@ -50,6 +55,9 @@ public class AppDbContext : DbContext
         
         // Subscriptions Configuration
         builder.ApplyConfigurationsFromAssembly(typeof(SubscriptionConfiguration).Assembly);
+        
+        // Admin Management Configuration
+        builder.ApplyAdminManagementConfiguration();
         
         // Notifications Configuration
         builder.ApplyConfiguration(new AlertEntityConfiguration());

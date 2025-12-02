@@ -32,6 +32,15 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="src\AdminManagement\Infrastructure\Persistence\EFC\Configuration\Extensions\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="src\AdminManagement\Infrastructure\Persistence\EFC\Configuration\Extensions\AdminManagementModelBuilderExtensions.cs" />
+      <Compile Remove="src\Api\Controllers\AdminController.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Folder Include="Migrations\" />
     </ItemGroup>
     

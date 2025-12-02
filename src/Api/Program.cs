@@ -22,6 +22,7 @@ using Energix.API.Notifications.Infrastructure;
 using Energix.API.Personalization.Infrastructure;
 using Energix.API.Profile.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
+using Energix.API.AdminManagement.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -183,6 +184,15 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Register other app services here if needed, e.g.:
+// builder.Services.AddScoped<IUserService, UserService>();
+
+// Registrar módulo de Subscriptions
+builder.Services.AddSubscriptionsInfrastructure(configuration);
+
+// Registrar módulo de AdminManagement
+builder.Services.AddAdminManagementServices(configuration);
+
 var app = builder.Build();
 
 // Swagger
@@ -233,6 +243,7 @@ app.UseAuthorization();   // 3️⃣ Autorización
 
 app.MapControllers();
 
+// Endpoint raíz informativo
 app.MapGet("/", () => Results.Ok(new
 {
     status = "ok",
@@ -240,8 +251,10 @@ app.MapGet("/", () => Results.Ok(new
     time = DateTime.UtcNow
 }));
 
+// Health sencillo
 app.MapGet("/health", () => Results.Ok("healthy"));
 
+// Readiness (chequeo rápido DB)
 app.MapGet("/ready", async (AppDbContext db) =>
 {
     try
