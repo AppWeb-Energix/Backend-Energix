@@ -27,7 +27,8 @@ var configuration = builder.Configuration;
 // DB (MySQL)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
-                  ?? "server=localhost;port=3306;database=energix;user=root;password=change_me";
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=Password123";
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
 
