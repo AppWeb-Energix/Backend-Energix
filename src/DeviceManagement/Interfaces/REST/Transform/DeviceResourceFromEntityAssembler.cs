@@ -21,14 +21,17 @@ public static class DeviceResourceFromEntityAssembler
             LinkedAt: entity.LinkedAt,
             ZoneId: entity.ZoneId,
             DeviceKind: entity.DeviceKind?.ToLowerString(),
-            Metrics: entity.Metrics != null 
-                ? new DeviceMetricsResource(
+            Metrics: entity.Metrics != null
+                ? new DeviceMetricsSummaryResource(
                     entity.Metrics.Monthly,
                     entity.Metrics.EstimatedCost,
                     entity.Metrics.Tariff,
-                    entity.Metrics.DailyAvg
+                    entity.Metrics.DailyAvg,
+                    null  // o la propiedad correcta
                 )
                 : null
+
+
         );
     }
 }
