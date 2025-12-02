@@ -122,33 +122,74 @@ public class DevicesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateDevice(
-        [FromQuery] int? userId,
-        [FromQuery] string? plan,
-        [FromBody] CreateDeviceResource resource)
+public async Task<IActionResult> CreateDevice(
+    [FromQuery] int? userId,
+    [FromQuery] string? plan,
+    [FromBody] CreateDeviceResource resource)
+{
+    try
     {
+        // 🔍 LOGGING DETALLADO
+        Console.WriteLine($"[DEVICES] === Iniciando CreateDevice ===");
+        Console.WriteLine($"[DEVICES] userId (query): {userId}");
+        Console.WriteLine($"[DEVICES] plan (query): {plan}");
+        Console.WriteLine($"[DEVICES] resource. UserId: {resource?. UserId}");
+        Console. WriteLine($"[DEVICES] resource.Type: {resource?.Type}");
+        Console.WriteLine($"[DEVICES] resource.Name: {resource?.Name}");
+
         var resolvedUserId = userId ?? resource.UserId;
         if (resolvedUserId == null)
+        {
+            Console.WriteLine("[DEVICES ERROR] userId es null");
             return BadRequest(new { message = "userId es requerido (query o body)" });
+        }
+
+        Console.WriteLine($"[DEVICES] resolvedUserId: {resolvedUserId}");
 
         PlanType userPlan;
         try
         {
             userPlan = ResolvePlanOrInfer(plan, resource.Type);
+            Console.WriteLine($"[DEVICES] userPlan resuelto: {userPlan}");
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[DEVICES ERROR] Error al resolver plan: {ex.Message}");
             return BadRequest(new { message = "Plan inválido. Use: basic, student, family" });
         }
 
-        var command = CreateDeviceCommandFromResourceAssembler.ToCommandFromResource(resource, resolvedUserId.Value);
+        var command = CreateDeviceCommandFromResourceAssembler. ToCommandFromResource(resource, resolvedUserId.Value);
+        Console.WriteLine($"[DEVICES] Command creado, ejecutando Handle...");
+        
         var result = await _commandService.Handle(command, userPlan);
+        Console.WriteLine($"[DEVICES] Handle completado.  Success: {result.Success}");
 
         if (!result.Success)
+        {
+            Console.WriteLine($"[DEVICES ERROR] Comando falló: {result.ErrorMessage}");
             return BadRequest(new { message = result.ErrorMessage });
+        }
 
         var deviceResource = DeviceResourceFromEntityAssembler.ToResourceFromEntity(result.Data!);
-        return CreatedAtAction(nameof(GetDeviceById), new { id = result.Data!.Id }, deviceResource);
+        Console. WriteLine($"[DEVICES] Device creado exitosamente. ID: {result.Data!.Id}");
+        return CreatedAtAction(nameof(GetDeviceById), new { id = result.Data!. Id }, deviceResource);
+    }
+    catch (Exception ex)
+        {
+        Console.WriteLine($"[DEVICES FATAL ERROR] {ex.GetType().Name}: {ex.Message}");
+        Console.WriteLine($"[DEVICES STACK] {ex.StackTrace}");
+        
+        if (ex.InnerException != null)
+        {
+            Console. WriteLine($"[DEVICES INNER] {ex.InnerException.Message}");
+        }
+        
+        return StatusCode(500, new { 
+            error = ex.Message, 
+            type = ex.GetType().Name,
+            innerError = ex.InnerException?.Message 
+        });
+        }
     }
 
     [HttpPatch("{id}")]
@@ -199,4 +240,6 @@ public class DevicesController : ControllerBase
 
         return NoContent();
     }
+    
+    
 }
