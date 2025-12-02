@@ -12,10 +12,10 @@ public interface IDeviceNamingService
     /// </summary>
     /// <param name="userId">User ID</param>
     /// <param name="deviceType">Device type</param>
-    /// <param name="currentCount">Current number of devices of that type</param>
-    /// <returns>Generated name (e.g., "Device 1", "Device 2")</returns>
-    Task<string> GenerateDeviceNameAsync(int userId, DeviceType deviceType, int currentCount);
-    
+    /// <param name="nextNumber">Next number in sequence for that device type</param>
+    /// <param name="deviceKind">Optional manual device kind to tailor the prefix</param>
+    /// <returns>Generated name (e.g., "TV 1", "Sensor 2")</returns>
+    Task<string> GenerateDeviceNameAsync(int userId, DeviceType deviceType, int nextNumber, DeviceKind? deviceKind = null);
     /// <summary>
     /// Validate whether a device name is valid
     /// </summary>

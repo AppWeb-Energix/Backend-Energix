@@ -1,4 +1,4 @@
-﻿using Energix.API.DeviceManagement.Domain.Model.Aggregates;
+﻿﻿using Energix.API.DeviceManagement.Domain.Model.Aggregates;
 using Energix.API.DeviceManagement.Domain.Model.Queries.Devices;
 using Energix.API.DeviceManagement.Domain.Repositories;
 using Energix.API.DeviceManagement.Domain.Services;
@@ -8,7 +8,7 @@ namespace Energix.API.DeviceManagement.Application.Internal.QueryServices;
 /// <summary>
 /// Application service for handling device-related queries
 /// </summary>
-public class DeviceQueryService
+public class DeviceQueryService : IDeviceQueryService
 {
     private readonly IDeviceRepository _deviceRepository;
     private readonly IPlanValidationService _planValidationService;

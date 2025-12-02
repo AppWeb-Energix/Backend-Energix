@@ -4,5 +4,6 @@
 /// Resource to create a zone
 /// </summary>
 public record CreateZoneResource(
+    int? UserId,
     string Name
 );

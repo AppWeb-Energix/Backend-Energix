@@ -1,9 +1,16 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Energix.API;
+using Energix.API.DeviceManagement.Application.Internal.CommandServices;
+using Energix.API.DeviceManagement.Application.Internal.QueryServices;
+using Energix.API.DeviceManagement.Domain.Repositories;
+using Energix.API.DeviceManagement.Domain.Services;
+using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Repositories;
+using Energix.API.DeviceManagement.Infrastructure.Services;
 using Energix.API.Identity.Application.Services;
 using Energix.API.Identity.Domain.Repositories;
 using Energix.API.Identity.Domain.Services;
@@ -11,58 +18,67 @@ using Energix.API.Identity.Infrastructure.Hashing;
 using Energix.API.Identity.Infrastructure.Persistence.Repositories;
 using Energix.API.Identity.Infrastructure.Tokens;
 using Energix.API.Identity.Infrastructure.Authorization.Middleware;
+using Energix.API.Notifications.Infrastructure;
 using Energix.API.Personalization.Infrastructure;
+using Energix.API.Profile.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
 using Energix.API.AdminManagement.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
-// --------------------
-// Base de datos (EF Core / MySQL)
-// --------------------
-// Get connection string from configuration (appsettings.json / environment)
+// DB (MySQL)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
-                  ?? "server=localhost;port=3306;database=energix;user=root;password=lucas1";
+                  ?? Environment.GetEnvironmentVariable("DB_CONNECTION")
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=3xp3ri3nciA*";
+
+Console.WriteLine($"[STARTUP] Conectando a BD: {defaultConn.Replace("password=", "password=***")}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
 
-// --------------------
 // CORS
-// --------------------
-const string DevCorsPolicy = "AllowDev";
-builder.Services.AddCors(o =>
+const string FrontendCorsPolicy = "FrontendPolicy";
+builder.Services.AddCors(options =>
 {
-    o.AddPolicy(DevCorsPolicy, policy =>
+    options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy.WithOrigins(
+                "https://frontend-energix.vercel.app",
+                "http://localhost:5173"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
 });
 
-// --------------------
-// JWT Auth
-// --------------------
+// JWT
 var jwtSection = configuration.GetSection("Jwt");
-var jwtKey = jwtSection["Key"] ?? configuration["Jwt:Key"] ?? "changeme_replace_with_strong_key";
+var jwtKey = jwtSection["Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? throw new InvalidOperationException("JWT_KEY no configurada");
 var jwtIssuer = jwtSection["Issuer"] ?? configuration["Jwt:Issuer"] ?? "energix";
 var jwtAudience = jwtSection["Audience"] ?? configuration["Jwt:Audience"] ?? "energix-client";
+
+Console.WriteLine($"[JWT CONFIG] Issuer: {jwtIssuer}, Audience: {jwtAudience}");
+
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services
-    .AddAuthentication(options =>
+    .AddAuthentication(o =>
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        o.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-    .AddJwtBearer(options =>
+    .AddJwtBearer(o =>
     {
-        options.RequireHttpsMetadata = false;
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
+        // ✅ Limpiar el mapeo de claims automático y fijar NameClaimType a "sub"
+        JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+        
+        o.RequireHttpsMetadata = false;
+        o.SaveToken = true;
+        o.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = signingKey,
@@ -71,15 +87,53 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwtAudience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30)
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = JwtRegisteredClaimNames.Sub // ✅ Configurar NameClaimType
+        };
+
+        // ✅ DEBUG: Logs de eventos JWT
+        o.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"❌ [JWT ERROR] {context.Exception.Message}");
+                if (context.Exception is SecurityTokenExpiredException)
+                {
+                    Console.WriteLine("⏰ [JWT] Token expirado");
+                }
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                var userId = context.Principal?.FindFirst("sub")?.Value;
+                var email = context.Principal?.FindFirst("email")?.Value;
+                Console.WriteLine($"✅ [JWT OK] Token válido - UserId: {userId}, Email: {email}");
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                Console.WriteLine($"⚠️ [JWT CHALLENGE] Error: {context.Error}, Descripción: {context.ErrorDescription}");
+                return Task.CompletedTask;
+            },
+            OnMessageReceived = context =>
+            {
+                var token = context.Request.Headers["Authorization"].ToString();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    Console.WriteLine($"🔐 [JWT] Token recibido: {token.Substring(0, Math.Min(50, token.Length))}...");
+                }
+                else
+                {
+                    Console.WriteLine("⚠️ [JWT] No se recibió token Authorization");
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
 builder.Services.Configure<TokenSettings>(configuration.GetSection("Jwt"));
 
-// --------------------
-// DI (Identity + Personalization)
-// --------------------
+// Identity + Personalization
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IHashingService, HashingService>();
@@ -87,25 +141,28 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserCommandService, UserCommandService>();
 builder.Services.AddScoped<IUserQueryService, UserQueryService>();
 builder.Services.AddPersonalizationServices();
+builder.Services.AddProfileServices();
 
-// --------------------
+// Device Management
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IZoneRepository, ZoneRepository>();
+builder.Services.AddScoped<IDeviceQueryService, DeviceQueryService>();
+builder.Services.AddScoped<IDeviceCommandService, DeviceCommandService>();
+builder.Services.AddScoped<IDeviceNamingService, DeviceNamingService>();
+builder.Services.AddScoped<IPlanValidationService, PlanValidationService>();
+
+// Notifications
+builder.Services.AddNotificationsServices();
+
+// Subscriptions
+builder.Services.AddSubscriptionsInfrastructure(configuration);
+
 // Controllers + Swagger
-// --------------------
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Energix API", Version = "v1" });
-    var securityScheme = new OpenApiSecurityScheme
-    {
-        Reference = new OpenApiReference()
-        {
-            Id = "Bearer"
-        },
-        Scheme = "Bearer",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-    };
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -113,18 +170,14 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Ingrese solo el token JWT",
+        Description = "Ingrese el token JWT sin la palabra Bearer."
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme()
+            new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
             Array.Empty<string>()
         }
@@ -142,35 +195,51 @@ builder.Services.AddAdminManagementServices(configuration);
 
 var app = builder.Build();
 
-// --------------------
-// Pipeline
-// --------------------
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-}
-else
-{
-    app.UseExceptionHandler("/error");
-    // HSTS solo si sirves HTTPS
-    // app.UseHsts();
-}
-
-// Evitar warning de HTTPS si no hay puerto configurado
-var hasHttpsPort = app.Configuration["ASPNETCORE_URLS"]?.Contains("https://") == true;
-if (hasHttpsPort)
-{
-    app.UseHttpsRedirection();
-}
-
+// Swagger
 app.UseSwagger();
 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
 
+// HTTPS
+var hasHttpsPort = app.Configuration["ASPNETCORE_URLS"]?.Contains("https://") == true;
+if (hasHttpsPort)
+    app.UseHttpsRedirection();
+
 app.UseRouting();
-app.UseCors(DevCorsPolicy);
-app.UseAuthentication();
-app.UseUserContext();
-app.UseAuthorization();
+
+// ✅ CORS primero
+app.UseCors(FrontendCorsPolicy);
+
+// ✅ Middleware simplificado para errores globales
+app.Use(async (HttpContext ctx, RequestDelegate next) =>
+{
+    try
+    {
+        await next(ctx);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[GLOBAL ERROR] {ex.GetType().Name}: {ex.Message}");
+        Console.WriteLine($"[STACK] {ex.StackTrace}");
+
+        ctx.Response.StatusCode = 500;
+        ctx.Response.ContentType = "application/json";
+
+        if (!ctx.Response.HasStarted)
+        {
+            await ctx.Response.WriteAsJsonAsync(new
+            {
+                error = ex.Message,
+                type = ex.GetType().Name,
+                message = "Internal server error"
+            });
+        }
+    }
+});
+
+// ⚠️ ORDEN CRÍTICO
+app.UseAuthentication();  // 1️⃣ Autenticación
+app.UseUserContext();     // 2️⃣ Contexto de usuario
+app.UseAuthorization();   // 3️⃣ Autorización
 
 app.MapControllers();
 
@@ -195,25 +264,29 @@ app.MapGet("/ready", async (AppDbContext db) =>
     }
     catch (Exception ex)
     {
+        Console.WriteLine($"[DB CHECK FAILED] {ex.Message}");
         return Results.Problem(ex.Message);
     }
 });
 
-// Migrations are applied manually using: dotnet ef database update
-// using (var scope = app.Services.CreateScope())
-// {
-//     var services = scope.ServiceProvider;
-//     try
-//     {
-//         var context = services.GetRequiredService<AppDbContext>();
-//         context.Database.Migrate();
-//         Console.WriteLine("✅ Migraciones aplicadas correctamente.");
-//     }
-//     catch (Exception ex)
-//     {
-//         var logger = services.GetRequiredService<ILogger<Program>>();
-//         logger.LogError(ex, "❌ Ocurrió un error al migrar la base de datos.");
-//     }
-// }
+// Migraciones
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        Console.WriteLine("[MIGRATION] Aplicando migraciones...");
+        context.Database.Migrate();
+        Console.WriteLine("[MIGRATION] Migraciones aplicadas exitosamente.");
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "[MIGRATION ERROR] Error al migrar la base de datos.");
+        Console.WriteLine($"[MIGRATION ERROR] {ex.Message}");
+    }
+}
 
+Console.WriteLine("[STARTUP] Aplicación iniciada correctamente.");
 app.Run();

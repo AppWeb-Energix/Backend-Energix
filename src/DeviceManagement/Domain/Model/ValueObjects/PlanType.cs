@@ -47,6 +47,8 @@ public static class PlanTypeExtensions
             "basic" => PlanType.Basic,
             "student" => PlanType.Student,
             "family" => PlanType.Family,
+            "familypremium" => PlanType.Family,
+            "premium" => PlanType.Family,
             _ => throw new ArgumentException($"Tipo de plan inválido: {value}")
         };
     }

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Energix.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251126214432_Initial")]
+    [Migration("20251202220003_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -196,6 +196,47 @@ namespace Energix.API.Migrations
                         .HasDatabaseName("idx_users_username_unique");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("Energix.API.Notifications.Domain.Aggregates.Alert", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("DeviceId")
+                        .HasColumnType("int")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("type");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_alerts_user_id_created_at");
+
+                    b.ToTable("alerts", (string)null);
                 });
 
             modelBuilder.Entity("Energix.API.Personalization.Domain.Model.Aggregates.PersonalizationAggregate", b =>

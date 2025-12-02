@@ -4,6 +4,8 @@ using Energix.API.DeviceManagement.Domain.Model.Aggregates;
 using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using Energix.API.Identity.Domain.Entities;
 using Energix.API.Identity.Infrastructure.Persistence.EFC.Configuration.Extensions;
+using Energix.API.Notifications.Domain.Aggregates;
+using Energix.API.Notifications.Infrastructure.Persistence.Configuration;
 using Energix.API.Personalization.Domain.Model.Aggregates;
 using Energix.API.Personalization.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using Energix.Subscriptions.Domain.Aggregates;
@@ -34,6 +36,9 @@ public class AppDbContext : DbContext
     
     // DbSets - Admin Management
     public DbSet<SimpleAuditLog> SimpleAuditLogs { get; set; } = null!;
+    
+    // DbSets - Notifications
+    public DbSet<Alert> Alerts { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -53,5 +58,8 @@ public class AppDbContext : DbContext
         
         // Admin Management Configuration
         builder.ApplyAdminManagementConfiguration();
+        
+        // Notifications Configuration
+        builder.ApplyConfiguration(new AlertEntityConfiguration());
     }
 }

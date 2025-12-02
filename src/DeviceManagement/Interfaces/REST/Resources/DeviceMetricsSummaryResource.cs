@@ -3,9 +3,10 @@
 /// <summary>
 /// Resource for manual device metrics
 /// </summary>
-public record DeviceMetricsResource(
+public record DeviceMetricsSummaryResource(
     decimal Monthly,
     decimal EstimatedCost,
     decimal? Tariff,
-    decimal DailyAvg
+    decimal DailyAvg,
+    List<ManualDeviceMetricsResource> Breakdown
 );

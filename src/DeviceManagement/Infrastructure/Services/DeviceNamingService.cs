@@ -10,7 +10,7 @@ namespace Energix.API.DeviceManagement.Infrastructure.Services;
 public class DeviceNamingService : IDeviceNamingService
 {
     private readonly IDeviceRepository _deviceRepository;
-    
+
     private const string DEVICE_NAME_PREFIX = "Dispositivo";
     private const int MAX_NAME_LENGTH = 50;
     private const int MIN_NAME_LENGTH = 1;
@@ -23,10 +23,32 @@ public class DeviceNamingService : IDeviceNamingService
     /// <summary>
     /// Generates an automatic name for a device based on the current type and quantity.
     /// </summary>
-    public async Task<string> GenerateDeviceNameAsync(int userId, DeviceType deviceType, int currentCount)
+    public Task<string> GenerateDeviceNameAsync(int userId, DeviceType deviceType, int nextNumber, DeviceKind? deviceKind = null)
     {
-        var nextNumber = await GetNextDeviceNumberAsync(userId, deviceType);
-        return $"{DEVICE_NAME_PREFIX} {nextNumber}";
+        var prefix = deviceType switch
+        {
+            DeviceType.Manual when deviceKind.HasValue => GetManualPrefix(deviceKind.Value),
+            DeviceType.Manual => "Dispositivo manual",
+            DeviceType.Plug => "Enchufe",
+            DeviceType.Sensor => "Sensor",
+            _ => DEVICE_NAME_PREFIX
+        };
+
+        return Task.FromResult($"{prefix} {nextNumber}");
+    }
+
+    private static string GetManualPrefix(DeviceKind kind)
+    {
+        return kind switch
+        {
+            DeviceKind.Refrigerator => "Refrigerador",
+            DeviceKind.Washer => "Lavadora",
+            DeviceKind.Tv => "TV",
+            DeviceKind.Pc => "PC",
+            DeviceKind.Lights => "Luces",
+            DeviceKind.Other => "Dispositivo",
+            _ => DEVICE_NAME_PREFIX
+        };
     }
 
     /// <summary>
@@ -38,7 +60,7 @@ public class DeviceNamingService : IDeviceNamingService
             return false;
 
         var trimmedName = name.Trim();
-        
+
         if (trimmedName.Length < MIN_NAME_LENGTH || trimmedName.Length > MAX_NAME_LENGTH)
             return false;
 
@@ -50,12 +72,8 @@ public class DeviceNamingService : IDeviceNamingService
     /// </summary>
     public async Task<int> GetNextDeviceNumberAsync(int userId, DeviceType deviceType)
     {
-        // Retrieve all user devices of the specified type
         var devices = await _deviceRepository.FindByUserIdAndTypeAsync(userId, deviceType);
-        
-        // Count how many devices you have
         var count = devices.Count();
-        
         return count + 1;
     }
 }
