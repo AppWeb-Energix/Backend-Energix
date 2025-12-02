@@ -1,6 +1,6 @@
 using Energix.API.Notifications.Domain.Repositories;
 using Energix.API.Notifications.Infrastructure.Persistence.Repositories;
-using Microsoft.Extensions.DependencyInjection;
+
 
 namespace Energix.API.Notifications.Infrastructure;
 

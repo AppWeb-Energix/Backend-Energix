@@ -1,5 +1,4 @@
-﻿using Energix.API;
-using Energix.API.Notifications.Domain.Aggregates;
+﻿using Energix.API.Notifications.Domain.Aggregates;
 using Energix.API.Notifications.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 

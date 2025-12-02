@@ -1,7 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using Energix.API.DeviceManagement.Domain.Model.Aggregates;
+﻿using Energix.API.DeviceManagement.Domain.Model.Aggregates;
 using Energix.API.DeviceManagement.Domain.Model.Commands;
 using Energix.API.DeviceManagement.Domain.Model.Commands.Devices;
 using Energix.API.DeviceManagement.Domain.Model.ValueObjects;
