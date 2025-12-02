@@ -1,3 +1,4 @@
+// Program.cs
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -20,15 +21,10 @@ using Energix.API.Identity.Infrastructure.Authorization.Middleware;
 using Energix.API.Personalization.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
 
-
-
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
-// --------------------
-// Base de datos (EF Core / MySQL)
-// --------------------
-// Get connection string from configuration (appsettings.json / environment)
+// DB (MySQL)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
                   ?? "server=localhost;port=3306;database=energix;user=root;password=Password123";
@@ -36,40 +32,43 @@ var defaultConn = configuration.GetConnectionString("DefaultConnection")
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
 
-// --------------------
 // CORS
-// --------------------
-const string DevCorsPolicy = "AllowDev";
-builder.Services.AddCors(o =>
+const string FrontendCorsPolicy = "FrontendPolicy";
+builder.Services.AddCors(options =>
 {
-    o.AddPolicy(DevCorsPolicy, policy =>
+    options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        var origins = new[]
+        {
+            "https://frontend-energix.vercel.app",
+            "https://backend-energix.onrender.com",
+            "http://localhost:5173"
+        };
+        policy.WithOrigins(origins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+        // Si necesitas cookies/JWT en navegador: agregar .AllowCredentials()
     });
 });
 
-// --------------------
-// JWT Auth
-// --------------------
+// JWT
 var jwtSection = configuration.GetSection("Jwt");
-var jwtKey = jwtSection["Key"] ?? configuration["Jwt:Key"] ?? "changeme_replace_with_strong_key";
+var jwtKey = jwtSection["Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? throw new InvalidOperationException("JWT_KEY no configurada");
 var jwtIssuer = jwtSection["Issuer"] ?? configuration["Jwt:Issuer"] ?? "energix";
 var jwtAudience = jwtSection["Audience"] ?? configuration["Jwt:Audience"] ?? "energix-client";
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services
-    .AddAuthentication(options =>
+    .AddAuthentication(o =>
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        o.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
-    .AddJwtBearer(options =>
+    .AddJwtBearer(o =>
     {
-        options.RequireHttpsMetadata = false;
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
+        o.RequireHttpsMetadata = false;
+        o.SaveToken = true;
+        o.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = signingKey,
@@ -84,9 +83,7 @@ builder.Services
 
 builder.Services.Configure<TokenSettings>(configuration.GetSection("Jwt"));
 
-// --------------------
-// DI (Identity + Personalization)
-// --------------------
+// Identity + Personalization
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IHashingService, HashingService>();
@@ -95,34 +92,23 @@ builder.Services.AddScoped<IUserCommandService, UserCommandService>();
 builder.Services.AddScoped<IUserQueryService, UserQueryService>();
 builder.Services.AddPersonalizationServices();
 
-// Device Management Services
+// Device Management
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IZoneRepository, ZoneRepository>();
 builder.Services.AddScoped<IDeviceQueryService, DeviceQueryService>();
 builder.Services.AddScoped<IDeviceCommandService, DeviceCommandService>();
-builder.Services.AddScoped<DeviceQueryService>();
-builder.Services.AddScoped<DeviceCommandService>();
 builder.Services.AddScoped<IDeviceNamingService, DeviceNamingService>();
 builder.Services.AddScoped<IPlanValidationService, PlanValidationService>();
 
-// --------------------
+// Subscriptions
+builder.Services.AddSubscriptionsInfrastructure(configuration);
+
 // Controllers + Swagger
-// --------------------
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Energix API", Version = "v1" });
-    var securityScheme = new OpenApiSecurityScheme
-    {
-        Reference = new OpenApiReference()
-        {
-            Id = "Bearer"
-        },
-        Scheme = "Bearer",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-    };
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -130,65 +116,48 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Ingrese solo el token JWT",
+        Description = "Ingrese el token JWT sin la palabra Bearer."
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme()
+            new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
             Array.Empty<string>()
         }
     });
 });
 
-// Register other app services here if needed, e.g.:
-// builder.Services.AddScoped<IUserService, UserService>();
-
-// Registrar módulo de Subscriptions
-builder.Services.AddSubscriptionsInfrastructure(configuration);
-
 var app = builder.Build();
 
-// --------------------
 // Pipeline
-// --------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
 }
 else
 {
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
     app.UseExceptionHandler("/error");
-    // HSTS solo si sirves HTTPS
-    // app.UseHsts();
 }
 
-// Evitar warning de HTTPS si no hay puerto configurado
 var hasHttpsPort = app.Configuration["ASPNETCORE_URLS"]?.Contains("https://") == true;
 if (hasHttpsPort)
-{
     app.UseHttpsRedirection();
-}
-
-app.UseSwagger();
-app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
 
 app.UseRouting();
-app.UseCors(DevCorsPolicy);
+app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 app.UseUserContext();
 app.UseAuthorization();
 
 app.MapControllers();
 
-// Endpoint raíz informativo
 app.MapGet("/", () => Results.Ok(new
 {
     status = "ok",
@@ -196,10 +165,7 @@ app.MapGet("/", () => Results.Ok(new
     time = DateTime.UtcNow
 }));
 
-// Health sencillo
 app.MapGet("/health", () => Results.Ok("healthy"));
-
-// Readiness (chequeo rápido DB)
 app.MapGet("/ready", async (AppDbContext db) =>
 {
     try
@@ -213,6 +179,7 @@ app.MapGet("/ready", async (AppDbContext db) =>
     }
 });
 
+// Migraciones
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -220,12 +187,12 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AppDbContext>();
         context.Database.Migrate();
-        Console.WriteLine("✅ Migraciones aplicadas correctamente.");
+        Console.WriteLine("✅ Migraciones aplicadas.");
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "❌ Ocurrió un error al migrar la base de datos.");
+        logger.LogError(ex, "❌ Error al migrar la base de datos.");
     }
 }
 
