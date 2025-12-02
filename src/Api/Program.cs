@@ -57,6 +57,9 @@ var jwtSection = configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY") ?? throw new InvalidOperationException("JWT_KEY no configurada");
 var jwtIssuer = jwtSection["Issuer"] ?? configuration["Jwt:Issuer"] ?? "energix";
 var jwtAudience = jwtSection["Audience"] ?? configuration["Jwt:Audience"] ?? "energix-client";
+
+Console.WriteLine($"[JWT CONFIG] Issuer: {jwtIssuer}, Audience: {jwtAudience}");
+
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services
@@ -79,6 +82,45 @@ builder.Services
             ValidAudience = jwtAudience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30)
+        };
+
+        // ✅ DEBUG: Logs de eventos JWT
+        o.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"❌ [JWT ERROR] {context.Exception.Message}");
+                if (context.Exception is SecurityTokenExpiredException)
+                {
+                    Console.WriteLine("⏰ [JWT] Token expirado");
+                }
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                var userId = context.Principal?.FindFirst("sub")?.Value;
+                var email = context.Principal?.FindFirst("email")?.Value;
+                Console.WriteLine($"✅ [JWT OK] Token válido - UserId: {userId}, Email: {email}");
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                Console.WriteLine($"⚠️ [JWT CHALLENGE] Error: {context.Error}, Descripción: {context.ErrorDescription}");
+                return Task.CompletedTask;
+            },
+            OnMessageReceived = context =>
+            {
+                var token = context.Request.Headers["Authorization"].ToString();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    Console.WriteLine($"🔐 [JWT] Token recibido: {token.Substring(0, Math.Min(50, token.Length))}...");
+                }
+                else
+                {
+                    Console.WriteLine("⚠️ [JWT] No se recibió token Authorization");
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -144,33 +186,12 @@ if (hasHttpsPort)
 
 app.UseRouting();
 
-// CORS antes de autenticación/autorización
+// ✅ CORS primero
 app.UseCors(FrontendCorsPolicy);
 
-// Middleware para asegurar CORS incluso en errores 500
-// Middleware para asegurar CORS incluso en errores 500
+// ✅ Middleware simplificado para errores globales
 app.Use(async (HttpContext ctx, RequestDelegate next) =>
 {
-    var origin = ctx.Request.Headers["Origin"].ToString();
-    var allowedOrigins = new[] { "https://frontend-energix.vercel.app", "http://localhost:5173" };
-
-    if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
-    {
-        // Aplicar headers CORS inmediatamente
-        ctx.Response.Headers["Access-Control-Allow-Origin"] = origin;
-        ctx.Response.Headers["Access-Control-Allow-Credentials"] = "true";
-        ctx.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS";
-        ctx.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, Origin, X-Requested-With";
-        ctx.Response.Headers["Access-Control-Max-Age"] = "3600";
-
-        // Si es preflight, responder inmediatamente
-        if (ctx.Request.Method == "OPTIONS")
-        {
-            ctx.Response.StatusCode = 204;
-            return;
-        }
-    }
-
     try
     {
         await next(ctx);
@@ -180,26 +201,25 @@ app.Use(async (HttpContext ctx, RequestDelegate next) =>
         Console.WriteLine($"[GLOBAL ERROR] {ex.GetType().Name}: {ex.Message}");
         Console.WriteLine($"[STACK] {ex.StackTrace}");
 
-        // Asegurar que los headers CORS estén presentes incluso en errores
-        if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
-        {
-            if (!ctx.Response.Headers.ContainsKey("Access-Control-Allow-Origin"))
-            {
-                ctx.Response.Headers["Access-Control-Allow-Origin"] = origin;
-                ctx.Response.Headers["Access-Control-Allow-Credentials"] = "true";
-            }
-        }
-
         ctx.Response.StatusCode = 500;
         ctx.Response.ContentType = "application/json";
+
         if (!ctx.Response.HasStarted)
-            await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, message = "Internal server error" });
+        {
+            await ctx.Response.WriteAsJsonAsync(new
+            {
+                error = ex.Message,
+                type = ex.GetType().Name,
+                message = "Internal server error"
+            });
+        }
     }
 });
 
-app.UseAuthentication();
-app.UseUserContext();
-app.UseAuthorization();
+// ⚠️ ORDEN CRÍTICO
+app.UseAuthentication();  // 1️⃣ Autenticación
+app.UseUserContext();     // 2️⃣ Contexto de usuario
+app.UseAuthorization();   // 3️⃣ Autorización
 
 app.MapControllers();
 
