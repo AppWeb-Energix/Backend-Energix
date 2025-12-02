@@ -1,4 +1,4 @@
-// Program.cs
+using System;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +27,11 @@ var configuration = builder.Configuration;
 // DB (MySQL)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
+                  ?? Environment.GetEnvironmentVariable("DB_CONNECTION")
                   ?? "server=localhost;port=3306;database=energix;user=root;password=change_me";
+
+Console.WriteLine($"[STARTUP] Conectando a BD: {defaultConn.Replace("password=", "password=***")}");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
 
@@ -37,16 +41,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        var origins = new[]
-        {
-            "https://frontend-energix.vercel.app",
-            "https://backend-energix.onrender.com",
-            "http://localhost:5173"
-        };
-        policy.WithOrigins(origins)
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-        // Si necesitas cookies/JWT en navegador: agregar .AllowCredentials()
+        policy.WithOrigins(
+                "https://frontend-energix.vercel.app",
+                "http://localhost:5173"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
 });
 
@@ -131,26 +132,54 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
-}
-else
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
-    app.UseExceptionHandler("/error");
-}
+// Swagger
+app.UseSwagger();
+app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
 
+// HTTPS
 var hasHttpsPort = app.Configuration["ASPNETCORE_URLS"]?.Contains("https://") == true;
 if (hasHttpsPort)
     app.UseHttpsRedirection();
 
 app.UseRouting();
+
+// CORS antes de autenticación/autorización
 app.UseCors(FrontendCorsPolicy);
+
+// Middleware para asegurar CORS incluso en errores 500
+app.Use(async (ctx, next) =>
+{
+    var origin = ctx.Request.Headers["Origin"].ToString();
+    var allowedOrigins = new[] { "https://frontend-energix.vercel.app", "http://localhost:5173" };
+
+    if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
+    {
+        ctx.Response.OnStarting(() =>
+        {
+            if (!ctx.Response.Headers.ContainsKey("Access-Control-Allow-Origin"))
+            {
+                ctx.Response.Headers.Append("Access-Control-Allow-Origin", origin);
+                ctx.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                ctx.Response.Headers.Append("Access-Control-Allow-Headers", "*");
+            }
+            return Task.CompletedTask;
+        });
+    }
+
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[GLOBAL ERROR] {ex.GetType().Name}: {ex.Message}");
+        Console.WriteLine($"[STACK] {ex.StackTrace}");
+        ctx.Response.StatusCode = 500;
+        if (!ctx.Response.HasStarted)
+            await ctx.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+});
+
 app.UseAuthentication();
 app.UseUserContext();
 app.UseAuthorization();
@@ -165,6 +194,7 @@ app.MapGet("/", () => Results.Ok(new
 }));
 
 app.MapGet("/health", () => Results.Ok("healthy"));
+
 app.MapGet("/ready", async (AppDbContext db) =>
 {
     try
@@ -174,6 +204,7 @@ app.MapGet("/ready", async (AppDbContext db) =>
     }
     catch (Exception ex)
     {
+        Console.WriteLine($"[DB CHECK FAILED] {ex.Message}");
         return Results.Problem(ex.Message);
     }
 });
@@ -185,14 +216,17 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
+        Console.WriteLine("[MIGRATION] Aplicando migraciones...");
         context.Database.Migrate();
-        Console.WriteLine("✅ Migraciones aplicadas.");
+        Console.WriteLine("[MIGRATION] Migraciones aplicadas exitosamente.");
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "❌ Error al migrar la base de datos.");
+        logger.LogError(ex, "[MIGRATION ERROR] Error al migrar la base de datos.");
+        Console.WriteLine($"[MIGRATION ERROR] {ex.Message}");
     }
 }
 
+Console.WriteLine("[STARTUP] Aplicación iniciada correctamente.");
 app.Run();
