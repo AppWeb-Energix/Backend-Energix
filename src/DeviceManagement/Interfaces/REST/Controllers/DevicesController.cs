@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Energix.API.DeviceManagement.Domain.Model.Commands.Devices;
 using Energix.API.DeviceManagement.Domain.Model.Queries.Devices;
 using Energix.API.DeviceManagement.Domain.Model.ValueObjects;
@@ -28,12 +29,13 @@ public class DevicesController : ControllerBase
 
     /// <summary>
     /// Extrae el userId desde el token JWT del usuario autenticado
-    /// Soporta: "sub", "userId", ClaimTypes.NameIdentifier
+    /// Soporta: JwtRegisteredClaimNames.Sub, "sub", "userId", ClaimTypes.NameIdentifier
     /// </summary>
     private int GetUserIdFromToken()
     {
-        // ✅ Prioridad: sub (estándar JWT) > userId > NameIdentifier
-        var userIdClaim = User.FindFirst("sub")
+        // ✅ Prioridad: JwtRegisteredClaimNames.Sub > "sub" > "userId" > NameIdentifier
+        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)
+                       ?? User.FindFirst("sub")
                        ?? User.FindFirst("userId")
                        ?? User.FindFirst(ClaimTypes.NameIdentifier);
 

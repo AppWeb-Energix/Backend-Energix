@@ -1,4 +1,5 @@
 using System;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -70,6 +71,9 @@ builder.Services
     })
     .AddJwtBearer(o =>
     {
+        // ✅ Limpiar el mapeo de claims automático y fijar NameClaimType a "sub"
+        JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+        
         o.RequireHttpsMetadata = false;
         o.SaveToken = true;
         o.TokenValidationParameters = new TokenValidationParameters
@@ -81,7 +85,8 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwtAudience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30)
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = JwtRegisteredClaimNames.Sub // ✅ Configurar NameClaimType
         };
 
         // ✅ DEBUG: Logs de eventos JWT
