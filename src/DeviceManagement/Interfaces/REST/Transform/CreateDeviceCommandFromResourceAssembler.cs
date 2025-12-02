@@ -12,15 +12,16 @@ public static class CreateDeviceCommandFromResourceAssembler
     public static CreateDeviceCommand ToCommandFromResource(CreateDeviceResource resource, int userId)
     {
         var deviceType = DeviceTypeExtensions.ParseDeviceType(resource.Type);
-        
+
         DeviceKind? deviceKind = null;
         if (!string.IsNullOrEmpty(resource.DeviceKind))
         {
             deviceKind = DeviceKindExtensions.ParseDeviceKind(resource.DeviceKind);
         }
-        var resolvedUserId = resource.UserId ?? userId;
+
+        // ✅ USAR SOLO EL userId DEL JWT (parámetro), IGNORAR resource.UserId
         return new CreateDeviceCommand(
-            UserId: resolvedUserId,
+            UserId: userId, // ← Solo el del JWT
             Name: resource.Name,
             Type: deviceType,
             DeviceKind: deviceKind,

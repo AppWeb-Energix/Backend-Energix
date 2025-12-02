@@ -1,16 +1,18 @@
-﻿using Energix. API.DeviceManagement.Application.Internal.CommandServices;
+﻿using System.Security.Claims;
+using Energix.API.DeviceManagement.Application.Internal.CommandServices;
 using Energix.API.DeviceManagement.Application.Internal.QueryServices;
-using Energix. API.DeviceManagement.Domain.Model.Commands;
-using Energix.API.DeviceManagement.Domain.Model.Commands. Devices;
-using Energix.API.DeviceManagement. Domain.Model.Queries;
-using Energix.API.DeviceManagement.Domain.Model. Queries.Devices;
+using Energix.API.DeviceManagement.Domain.Model.Commands;
+using Energix.API.DeviceManagement.Domain.Model.Commands.Devices;
+using Energix.API.DeviceManagement.Domain.Model.Queries;
+using Energix.API.DeviceManagement.Domain.Model.Queries.Devices;
 using Energix.API.DeviceManagement.Domain.Model.ValueObjects;
-using Energix. API.DeviceManagement.Domain.Services;
-using Energix.API.DeviceManagement. Interfaces.REST.Resources;
+using Energix.API.DeviceManagement.Domain.Services;
+using Energix.API.DeviceManagement.Interfaces.REST.Resources;
 using Energix.API.DeviceManagement.Interfaces.REST.Transform;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Energix.API.DeviceManagement.Interfaces.REST. Controllers;
+namespace Energix.API.DeviceManagement.Interfaces.REST.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
@@ -27,10 +29,28 @@ public class DevicesController : ControllerBase
         _queryService = queryService;
     }
 
+    /// <summary>
+    /// Extrae el userId desde el token JWT del usuario autenticado
+    /// </summary>
+    private int? GetUserIdFromToken()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
+                       ?? User.FindFirst("sub")
+                       ?? User.FindFirst("userId")
+                       ?? User.FindFirst("id");
+
+        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId))
+        {
+            return userId;
+        }
+
+        return null;
+    }
+
     private static string? NormalizePlan(string? plan) =>
         string.IsNullOrWhiteSpace(plan) ||
         string.Equals(plan, "undefined", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(plan, "null", StringComparison. OrdinalIgnoreCase)
+        string.Equals(plan, "null", StringComparison.OrdinalIgnoreCase)
             ? null
             : plan;
 
@@ -38,7 +58,7 @@ public class DevicesController : ControllerBase
     {
         var normalizedPlan = NormalizePlan(plan);
 
-        if (!string. IsNullOrEmpty(normalizedPlan))
+        if (!string.IsNullOrEmpty(normalizedPlan))
             return PlanTypeExtensions.ParsePlanType(normalizedPlan);
 
         return resourceType.ToLowerInvariant() switch
@@ -58,12 +78,19 @@ public class DevicesController : ControllerBase
             : PlanTypeExtensions.ParsePlanType(normalizedPlan);
     }
 
+    /// <summary>
+    /// Obtiene todos los dispositivos del usuario autenticado, opcionalmente filtrados por tipo
+    /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetDevicesByUserId(
-        [FromQuery] int userId,
-        [FromQuery] string? type = null)
+    [Authorize]
+    public async Task<IActionResult> GetDevicesByUserId([FromQuery] string? type = null)
     {
-        DeviceType?  deviceType = null;
+        var userId = GetUserIdFromToken();
+
+        if (userId == null)
+            return Unauthorized(new { message = "Token JWT inválido o no contiene userId" });
+
+        DeviceType? deviceType = null;
         if (!string.IsNullOrEmpty(type))
         {
             try
@@ -76,148 +103,204 @@ public class DevicesController : ControllerBase
             }
         }
 
-        var query = new GetDevicesByUserIdQuery(userId, deviceType);
+        var query = new GetDevicesByUserIdQuery(userId.Value, deviceType);
         var devices = await _queryService.Handle(query);
         var resources = devices.Select(DeviceResourceFromEntityAssembler.ToResourceFromEntity);
 
         return Ok(resources);
     }
 
+    /// <summary>
+    /// Obtiene resumen de métricas de dispositivos manuales del usuario autenticado
+    /// </summary>
     [HttpGet("metrics/summary")]
-    public async Task<IActionResult> GetManualDeviceMetricsSummary([FromQuery] int userId)
+    [Authorize]
+    public async Task<IActionResult> GetManualDeviceMetricsSummary()
     {
-        if (userId <= 0)
-            return BadRequest(new { message = "userId es requerido" });
+        var userId = GetUserIdFromToken();
 
-        var manualDevices = await _queryService.Handle(new GetDevicesByUserIdQuery(userId, DeviceType. Manual));
+        if (userId == null)
+            return Unauthorized(new { message = "Token JWT inválido" });
+
+        var manualDevices = await _queryService.Handle(
+            new GetDevicesByUserIdQuery(userId.Value, DeviceType.Manual));
+        
         var resource = DeviceMetricsSummaryResourceAssembler.ToResourceFromEntities(manualDevices);
 
         return Ok(resource);
     }
 
     /// <summary>
-    /// Devuelve los labels, datasets y KPIs para graficar dispositivos manuales en el frontend.
+    /// Devuelve los labels, datasets y KPIs para graficar dispositivos manuales del usuario autenticado
     /// </summary>
-    /// <param name="userId">Identificador del usuario dueño de los dispositivos manuales. </param>
     [HttpGet("metrics/chart")]
-    public async Task<IActionResult> GetManualDeviceMetricsChart([FromQuery] int userId)
+    [Authorize]
+    public async Task<IActionResult> GetManualDeviceMetricsChart()
     {
-        if (userId <= 0)
-            return BadRequest(new { message = "userId es requerido" });
+        var userId = GetUserIdFromToken();
 
-        var manualDevices = await _queryService.Handle(new GetDevicesByUserIdQuery(userId, DeviceType.Manual));
+        if (userId == null)
+            return Unauthorized(new { message = "Token JWT inválido" });
+
+        var manualDevices = await _queryService.Handle(
+            new GetDevicesByUserIdQuery(userId.Value, DeviceType.Manual));
+        
         var resource = ManualDeviceChartResourceAssembler.ToChartResource(manualDevices);
 
         return Ok(resource);
     }
 
+    /// <summary>
+    /// Obtiene un dispositivo específico por su ID
+    /// </summary>
     [HttpGet("{id}")]
+    [Authorize]
     public async Task<IActionResult> GetDeviceById(int id)
     {
+        var userId = GetUserIdFromToken();
+
+        if (userId == null)
+            return Unauthorized(new { message = "Token JWT inválido" });
+
         var query = new GetDeviceByIdQuery(id);
         var device = await _queryService.Handle(query);
 
         if (device == null)
             return NotFound(new { message = "Dispositivo no encontrado" });
 
+        // Validar que el dispositivo pertenezca al usuario autenticado
+        if (device.UserId != userId.Value)
+            return Forbid();
+
         var resource = DeviceResourceFromEntityAssembler.ToResourceFromEntity(device);
         return Ok(resource);
     }
 
+    /// <summary>
+    /// Crea un nuevo dispositivo para el usuario autenticado
+    /// </summary>
+    /// <summary>
+    /// Crea un nuevo dispositivo para el usuario autenticado
+    /// </summary>
     [HttpPost]
+    [Authorize]
     public async Task<IActionResult> CreateDevice(
-        [FromQuery] int?  userId,
-        [FromQuery] string? plan,
-        [FromBody] CreateDeviceResource resource)
+        [FromBody] CreateDeviceResource resource,
+        [FromQuery] string? plan = null)
     {
         try
         {
-            // 🔍 LOGGING DETALLADO
+            var userId = GetUserIdFromToken();
+
+            if (userId == null)
+                return Unauthorized(new { message = "Token JWT inválido o no contiene userId" });
+
             Console.WriteLine($"[DEVICES] === Iniciando CreateDevice ===");
-            Console.WriteLine($"[DEVICES] userId (query): {userId}");
+            Console.WriteLine($"[DEVICES] userId desde JWT: {userId}");
             Console.WriteLine($"[DEVICES] plan (query): {plan}");
-            Console.WriteLine($"[DEVICES] resource. UserId: {resource?.UserId}");
             Console.WriteLine($"[DEVICES] resource.Type: {resource?.Type}");
             Console.WriteLine($"[DEVICES] resource.Name: {resource?.Name}");
 
-            var resolvedUserId = userId ?? resource. UserId;
-            if (resolvedUserId == null)
-            {
-                Console.WriteLine("[DEVICES ERROR] userId es null");
-                return BadRequest(new { message = "userId es requerido (query o body)" });
-            }
+            // NO modificar resource.UserId, pasar el userId del JWT al assembler
+            var command = CreateDeviceCommandFromResourceAssembler.ToCommandFromResource(
+                resource,
+                userId.Value); // ← El assembler debe usar este userId en lugar del resource.UserId
 
-            Console.WriteLine($"[DEVICES] resolvedUserId: {resolvedUserId}");
-
-            var command = CreateDeviceCommandFromResourceAssembler.ToCommandFromResource(resource, resolvedUserId.Value);
             Console.WriteLine($"[DEVICES] Command creado, ejecutando Handle...");
-            
-            var device = await _commandService.Handle(command);  // ✅ Solo 1 parámetro
+
+            var device = await _commandService.Handle(command);
             Console.WriteLine($"[DEVICES] Device creado exitosamente. ID: {device.Id}");
 
-            var deviceResource = DeviceResourceFromEntityAssembler. ToResourceFromEntity(device);
+            var deviceResource = DeviceResourceFromEntityAssembler.ToResourceFromEntity(device);
             return CreatedAtAction(nameof(GetDeviceById), new { id = device.Id }, deviceResource);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[DEVICES FATAL ERROR] {ex.GetType().Name}: {ex.Message}");
             Console.WriteLine($"[DEVICES STACK] {ex.StackTrace}");
-            
+
             if (ex.InnerException != null)
             {
                 Console.WriteLine($"[DEVICES INNER] {ex.InnerException.Message}");
             }
-            
-            return StatusCode(500, new { 
-                error = ex.Message, 
-                type = ex.GetType(). Name,
-                innerError = ex.InnerException?.Message 
+
+            return StatusCode(500, new
+            {
+                error = ex.Message,
+                type = ex.GetType().Name,
+                innerError = ex.InnerException?.Message
             });
         }
     }
 
+
+    /// <summary>
+    /// Actualiza un dispositivo existente del usuario autenticado
+    /// </summary>
     [HttpPatch("{id}")]
+    [Authorize]
     public async Task<IActionResult> UpdateDevice(
         int id,
-        [FromQuery] string? plan,
-        [FromBody] UpdateDeviceResource resource)
+        [FromBody] UpdateDeviceResource resource,
+        [FromQuery] string? plan = null)
     {
         try
         {
+            var userId = GetUserIdFromToken();
+
+            if (userId == null)
+                return Unauthorized(new { message = "Token JWT inválido" });
+
+            // Validar que el dispositivo pertenezca al usuario autenticado
+            var existingDevice = await _queryService.Handle(new GetDeviceByIdQuery(id));
+            
+            if (existingDevice == null)
+                return NotFound(new { message = "Dispositivo no encontrado" });
+
+            if (existingDevice.UserId != userId.Value)
+                return Forbid();
+
             var command = UpdateDeviceCommandFromResourceAssembler.ToCommandFromResource(resource, id);
-            var device = await _commandService.Handle(command);  // ✅ Solo 1 parámetro
+            var device = await _commandService.Handle(command);
 
             if (device == null)
                 return NotFound(new { message = "Dispositivo no encontrado" });
 
-            var deviceResource = DeviceResourceFromEntityAssembler. ToResourceFromEntity(device);
+            var deviceResource = DeviceResourceFromEntityAssembler.ToResourceFromEntity(device);
             return Ok(deviceResource);
         }
         catch (Exception ex)
         {
-            Console. WriteLine($"[UPDATE ERROR] {ex.Message}");
-            return BadRequest(new { message = ex. Message });
+            Console.WriteLine($"[UPDATE ERROR] {ex.Message}");
+            return BadRequest(new { message = ex.Message });
         }
     }
 
+    /// <summary>
+    /// Elimina un dispositivo del usuario autenticado
+    /// </summary>
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteDevice(int id, [FromQuery] int? userId)
+    [Authorize]
+    public async Task<IActionResult> DeleteDevice(int id)
     {
         try
         {
-            var resolvedUserId = userId;
+            var userId = GetUserIdFromToken();
 
-            if (resolvedUserId == null)
-            {
-                var device = await _queryService.Handle(new GetDeviceByIdQuery(id));
-                resolvedUserId = device?.UserId;
-            }
+            if (userId == null)
+                return Unauthorized(new { message = "Token JWT inválido" });
 
-            if (resolvedUserId == null)
-                return BadRequest(new { message = "userId es requerido para eliminar el dispositivo" });
+            // Validar que el dispositivo exista y pertenezca al usuario
+            var device = await _queryService.Handle(new GetDeviceByIdQuery(id));
+            
+            if (device == null)
+                return NotFound(new { message = "Dispositivo no encontrado" });
 
-            var command = new DeleteDeviceCommand(id, resolvedUserId.Value);
-            var success = await _commandService.Handle(command);  // ✅ Retorna bool
+            if (device.UserId != userId.Value)
+                return Forbid();
+
+            var command = new DeleteDeviceCommand(id, userId.Value);
+            var success = await _commandService.Handle(command);
 
             if (!success)
                 return BadRequest(new { message = "No se pudo eliminar el dispositivo" });
