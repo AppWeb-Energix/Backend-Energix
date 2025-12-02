@@ -7,6 +7,8 @@ using Energix.API.DeviceManagement.Domain.Model.Commands.Devices;
 using Energix.API.DeviceManagement.Domain.Model.ValueObjects;
 using Energix.API.DeviceManagement.Domain.Repositories;
 using Energix.API.DeviceManagement.Domain.Services;
+using Energix.API.Notifications.Domain.Aggregates;
+using Energix.API.Notifications.Domain.Repositories;
 
 namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
 {
@@ -19,17 +21,20 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
         private readonly IZoneRepository _zoneRepository;
         private readonly IPlanValidationService _planValidationService;
         private readonly IDeviceNamingService _deviceNamingService;
+        private readonly IAlertRepository _alertRepository;
 
         public DeviceCommandService(
             IDeviceRepository deviceRepository,
             IZoneRepository zoneRepository,
             IPlanValidationService planValidationService,
-            IDeviceNamingService deviceNamingService)
+            IDeviceNamingService deviceNamingService,
+            IAlertRepository alertRepository)
         {
             _deviceRepository = deviceRepository;
             _zoneRepository = zoneRepository;
             _planValidationService = planValidationService;
             _deviceNamingService = deviceNamingService;
+            _alertRepository = alertRepository;
         }
 
         private async Task<string> ResolveDeviceNameAsync(CreateDeviceCommand command)
@@ -164,6 +169,20 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
                 var created = await _deviceRepository.AddAsync(device);
                 Console.WriteLine($"[15] Dispositivo guardado exitosamente con ID: {created.Id}");
 
+                // 6. Create alert for device creation
+                try
+                {
+                    var alertMessage = $"Dispositivo {created.Name} agregado ({created.Type.ToLowerString()})";
+                    var alert = new Alert(created.UserId, created.Id, "created", alertMessage);
+                    await _alertRepository.AddAsync(alert);
+                    Console.WriteLine($"[16] Alerta creada: {alertMessage}");
+                }
+                catch (Exception alertEx)
+                {
+                    Console.WriteLine($"⚠️ [ALERT ERROR] No se pudo crear alerta: {alertEx.Message}");
+                    // Don't fail the entire operation if alert creation fails
+                }
+
                 return CommandResult<Device>.Ok(created);
             }
             catch (Exception ex)
@@ -188,6 +207,10 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
                     return CommandResult<Device>.Fail("Dispositivo no encontrado");
                 }
 
+                // Store old name for alert if renaming
+                var oldName = device.Name;
+                var wasRenamed = false;
+
                 // 2. Update name (if applicable)
                 if (!string.IsNullOrWhiteSpace(command.Name))
                 {
@@ -196,6 +219,7 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
                         return CommandResult<Device>.Fail("Tu plan no permite renombrar dispositivos");
                     }
                     device.Rename(command.Name);
+                    wasRenamed = true;
                 }
 
                 // 3. Toggle power (if applicable)
@@ -283,6 +307,23 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
 
                 var updated = await _deviceRepository.UpdateAsync(device);
 
+                // 6. Create alert if device was renamed
+                if (wasRenamed)
+                {
+                    try
+                    {
+                        var alertMessage = $"Dispositivo {oldName} renombrado a {updated.Name}";
+                        var alert = new Alert(updated.UserId, updated.Id, "renamed", alertMessage);
+                        await _alertRepository.AddAsync(alert);
+                        Console.WriteLine($"✅ Alerta creada: {alertMessage}");
+                    }
+                    catch (Exception alertEx)
+                    {
+                        Console.WriteLine($"⚠️ [ALERT ERROR] No se pudo crear alerta: {alertEx.Message}");
+                        // Don't fail the entire operation if alert creation fails
+                    }
+                }
+
                 return CommandResult<Device>.Ok(updated);
             }
             catch (Exception ex)
@@ -312,7 +353,26 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
                     return CommandResult.Fail("Dispositivo no encontrado");
                 }
 
+                // Store device info for alert before deletion
+                var deviceName = device.Name;
+                var deviceUserId = device.UserId;
+                var deviceId = device.Id;
+
                 await _deviceRepository.DeleteAsync(device);
+
+                // 3. Create alert for device deletion
+                try
+                {
+                    var alertMessage = $"Dispositivo {deviceName} eliminado";
+                    var alert = new Alert(deviceUserId, deviceId, "deleted", alertMessage);
+                    await _alertRepository.AddAsync(alert);
+                    Console.WriteLine($"✅ Alerta creada: {alertMessage}");
+                }
+                catch (Exception alertEx)
+                {
+                    Console.WriteLine($"⚠️ [ALERT ERROR] No se pudo crear alerta: {alertEx.Message}");
+                    // Don't fail the entire operation if alert creation fails
+                }
 
                 return CommandResult.Ok();
             }

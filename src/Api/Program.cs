@@ -19,6 +19,7 @@ using Energix.API.Identity.Infrastructure.Hashing;
 using Energix.API.Identity.Infrastructure.Persistence.Repositories;
 using Energix.API.Identity.Infrastructure.Tokens;
 using Energix.API.Identity.Infrastructure.Authorization.Middleware;
+using Energix.API.Notifications.Infrastructure;
 using Energix.API.Personalization.Infrastructure;
 using Energix.API.Profile.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
@@ -149,6 +150,9 @@ builder.Services.AddScoped<IDeviceQueryService, DeviceQueryService>();
 builder.Services.AddScoped<IDeviceCommandService, DeviceCommandService>();
 builder.Services.AddScoped<IDeviceNamingService, DeviceNamingService>();
 builder.Services.AddScoped<IPlanValidationService, PlanValidationService>();
+
+// Notifications
+builder.Services.AddNotificationsServices();
 
 // Subscriptions
 builder.Services.AddSubscriptionsInfrastructure(configuration);
