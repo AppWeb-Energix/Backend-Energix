@@ -13,7 +13,7 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
     /// <summary>
     /// Application service for handling device-related commands
     /// </summary>
-    public class DeviceCommandService
+    public class DeviceCommandService : IDeviceCommandService
     {
         private readonly IDeviceRepository _deviceRepository;
         private readonly IZoneRepository _zoneRepository;
@@ -42,7 +42,7 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
 
             // Otherwise generate an automatic name
             var nextNumber = await _deviceNamingService.GetNextDeviceNumberAsync(command.UserId, command.Type);
-            return await _deviceNamingService.GenerateDeviceNameAsync(command.UserId, command.Type, nextNumber);
+            return await _deviceNamingService.GenerateDeviceNameAsync(command.UserId, command.Type, nextNumber, command.DeviceKind);
         }
 
         /// <summary>
@@ -52,15 +52,21 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
         {
             try
             {
+                Console.WriteLine($"[1] Iniciando creación - UserId: {command.UserId}, Type: {command.Type}, Plan: {userPlan}");
+
                 // 1. Verify that the user does not have any other type of device/plan
                 var existingDevices = (await _deviceRepository.FindByUserIdAsync(command.UserId)).ToList();
+                Console.WriteLine($"[2] Dispositivos existentes: {existingDevices.Count}");
+
                 if (existingDevices.Any())
                 {
                     var existingType = existingDevices.First().Type;
                     var expectedType = _planValidationService.GetDeviceTypeForPlan(userPlan);
+                    Console.WriteLine($"[3] Tipo existente: {existingType}, Tipo esperado: {expectedType}");
 
                     if (existingType != expectedType)
                     {
+                        Console.WriteLine($"[ERROR] Tipos no coinciden");
                         return CommandResult<Device>.Fail(
                             $"No puedes crear dispositivos de tipo '{expectedType.ToLowerString()}'. " +
                             $"Tu plan actual solo permite dispositivos de tipo '{existingType.ToLowerString()}'");
@@ -69,42 +75,54 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
 
                 // 2. Validate device limit according to the plan
                 var currentCount = await _deviceRepository.CountByUserIdAsync(command.UserId);
+                Console.WriteLine($"[4] Cantidad actual: {currentCount}");
+
                 var canAdd = await _planValidationService.CanAddDeviceAsync(command.UserId, userPlan, currentCount);
+                Console.WriteLine($"[5] CanAdd: {canAdd}");
 
                 if (!canAdd)
                 {
                     var limit = _planValidationService.GetDeviceLimit(userPlan);
+                    Console.WriteLine($"[ERROR] Límite alcanzado: {limit}");
                     return CommandResult<Device>.Fail($"Has alcanzado el límite de {limit} dispositivos para tu plan");
                 }
 
                 // 3. Verify that the device type corresponds to the plan
                 var expectedDeviceType = _planValidationService.GetDeviceTypeForPlan(userPlan);
+                Console.WriteLine($"[6] Tipo esperado: {expectedDeviceType}, Tipo recibido: {command.Type}");
+
                 if (command.Type != expectedDeviceType)
                 {
+                    Console.WriteLine($"[ERROR] Tipo no válido para el plan");
                     return CommandResult<Device>.Fail($"Tu plan solo permite dispositivos de tipo '{expectedDeviceType.ToLowerString()}'");
                 }
 
                 // 4. Resolve device name
+                Console.WriteLine($"[7] Resolviendo nombre del dispositivo");
                 string deviceName;
-                if (userPlan == PlanType.Basic)
-                {
-                    // Basic plan forces automatic naming
-                    var nextNumber = await _deviceNamingService.GetNextDeviceNumberAsync(command.UserId, command.Type);
-                    deviceName = await _deviceNamingService.GenerateDeviceNameAsync(command.UserId, command.Type, nextNumber);
-                }
-                else
-                {
-                    deviceName = await ResolveDeviceNameAsync(command);
-                }
+                var nextNumber = await _deviceNamingService.GetNextDeviceNumberAsync(command.UserId, command.Type);
+                Console.WriteLine($"[8] Siguiente número: {nextNumber}");
+
+                deviceName = userPlan == PlanType.Basic
+                    ? await _deviceNamingService.GenerateDeviceNameAsync(command.UserId, command.Type, nextNumber, command.DeviceKind)
+                    : await ResolveDeviceNameAsync(command);
+
+                Console.WriteLine($"[9] Nombre resuelto: {deviceName}");
 
                 // 5. Create the device according to the type
                 Device device;
 
                 if (command.Type == DeviceType.Manual)
                 {
+                    Console.WriteLine($"[10] Creando dispositivo manual");
+                    Console.WriteLine($"[10.1] DeviceKind: {command.DeviceKind?.ToString() ?? "NULL"}");
+                    Console.WriteLine($"[10.2] Monthly: {command.Monthly?.ToString() ?? "NULL"}");
+                    Console.WriteLine($"[10.3] EstimatedCost: {command.EstimatedCost?.ToString() ?? "NULL"}");
+
                     // Verify that the required fields for manual devices are present
                     if (!command.DeviceKind.HasValue || !command.Monthly.HasValue || !command.EstimatedCost.HasValue)
                     {
+                        Console.WriteLine($"[ERROR] Faltan campos requeridos para dispositivo manual");
                         return CommandResult<Device>.Fail("Para dispositivos manuales se requiere: DeviceKind, Monthly y EstimatedCost");
                     }
 
@@ -114,15 +132,20 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
                         command.Tariff // keep nullable
                     );
 
+                    Console.WriteLine($"[11] Métricas creadas");
+
                     device = new Device(
                         command.UserId,
                         deviceName,
                         command.DeviceKind.Value,
                         metrics
                     );
+
+                    Console.WriteLine($"[12] Dispositivo creado en memoria");
                 }
                 else
                 {
+                    Console.WriteLine($"[13] Creando dispositivo automático");
                     // Automatic device (plug or sensor)
                     // Validate that manual-only fields are NOT included
                     if (command.DeviceKind.HasValue || command.Monthly.HasValue || command.EstimatedCost.HasValue || command.Tariff.HasValue)
@@ -137,12 +160,16 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
                     );
                 }
 
+                Console.WriteLine($"[14] Intentando guardar en BD");
                 var created = await _deviceRepository.AddAsync(device);
+                Console.WriteLine($"[15] Dispositivo guardado exitosamente con ID: {created.Id}");
 
                 return CommandResult<Device>.Ok(created);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[EXCEPTION] {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"[STACK] {ex.StackTrace}");
                 return CommandResult<Device>.Fail($"Error al crear dispositivo: {ex.Message}");
             }
         }
@@ -201,9 +228,9 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
                     if (command.Online.HasValue)
                     {
                         if (command.Online.Value)
-                            device.TurnOn();   // usa la lógica de dominio
+                            device.TurnOn();
                         else
-                            device.TurnOff();  // usa la lógica de dominio
+                            device.TurnOff();
                     }
                 }
 
@@ -293,6 +320,45 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
             {
                 return CommandResult.Fail($"Error al eliminar dispositivo: {ex.Message}");
             }
+        }
+
+        // Interface implementation methods (simple wrappers)
+
+        /// <summary>
+        /// Handle creating a device (without plan parameter for interface)
+        /// </summary>
+        async Task<Device> IDeviceCommandService.Handle(CreateDeviceCommand command)
+        {
+            // Default to Basic plan if not specified - should be overridden by controller
+            var result = await Handle(command, PlanType.Basic);
+            if (!result.Success)
+            {
+                throw new InvalidOperationException(result.ErrorMessage ?? "Error desconocido al crear dispositivo");
+            }
+            return result.Data!;
+        }
+
+        /// <summary>
+        /// Handle updating a device (without plan parameter for interface)
+        /// </summary>
+        async Task<Device?> IDeviceCommandService.Handle(UpdateDeviceCommand command)
+        {
+            // Default to Basic plan if not specified - should be overridden by controller
+            var result = await Handle(command, PlanType.Basic);
+            if (!result.Success)
+            {
+                throw new InvalidOperationException(result.ErrorMessage ?? "Error desconocido al actualizar dispositivo");
+            }
+            return result.Data;
+        }
+
+        /// <summary>
+        /// Handle deleting a device (bool return for interface)
+        /// </summary>
+        async Task<bool> IDeviceCommandService.Handle(DeleteDeviceCommand command)
+        {
+            var result = await Handle(command);
+            return result.Success;
         }
     }
 }

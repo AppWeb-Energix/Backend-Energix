@@ -4,6 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Energix.API;
+using Energix.API.DeviceManagement.Application.Internal.CommandServices;
+using Energix.API.DeviceManagement.Application.Internal.QueryServices;
+using Energix.API.DeviceManagement.Domain.Repositories;
+using Energix.API.DeviceManagement.Domain.Services;
+using Energix.API.DeviceManagement.Infrastructure.Persistence.EFC.Repositories;
+using Energix.API.DeviceManagement.Infrastructure.Services;
 using Energix.API.Identity.Application.Services;
 using Energix.API.Identity.Domain.Repositories;
 using Energix.API.Identity.Domain.Services;
@@ -13,6 +19,8 @@ using Energix.API.Identity.Infrastructure.Tokens;
 using Energix.API.Identity.Infrastructure.Authorization.Middleware;
 using Energix.API.Personalization.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -86,6 +94,16 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserCommandService, UserCommandService>();
 builder.Services.AddScoped<IUserQueryService, UserQueryService>();
 builder.Services.AddPersonalizationServices();
+
+// Device Management Services
+builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
+builder.Services.AddScoped<IZoneRepository, ZoneRepository>();
+builder.Services.AddScoped<IDeviceQueryService, DeviceQueryService>();
+builder.Services.AddScoped<IDeviceCommandService, DeviceCommandService>();
+builder.Services.AddScoped<DeviceQueryService>();
+builder.Services.AddScoped<DeviceCommandService>();
+builder.Services.AddScoped<IDeviceNamingService, DeviceNamingService>();
+builder.Services.AddScoped<IPlanValidationService, PlanValidationService>();
 
 // --------------------
 // Controllers + Swagger

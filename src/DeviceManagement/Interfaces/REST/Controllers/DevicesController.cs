@@ -5,6 +5,7 @@ using Energix.API.DeviceManagement.Domain.Model.Commands.Devices;
 using Energix.API.DeviceManagement.Domain.Model.Queries;
 using Energix.API.DeviceManagement.Domain.Model.Queries.Devices;
 using Energix.API.DeviceManagement.Domain.Model.ValueObjects;
+using Energix.API.DeviceManagement.Domain.Services;
 using Energix.API.DeviceManagement.Interfaces.REST.Resources;
 using Energix.API.DeviceManagement.Interfaces.REST.Transform;
 using Microsoft.AspNetCore.Mvc;
@@ -16,11 +17,11 @@ namespace Energix.API.DeviceManagement.Interfaces.REST.Controllers;
 public class DevicesController : ControllerBase
 {
     private readonly DeviceCommandService _commandService;
-    private readonly DeviceQueryService _queryService;
+    private readonly IDeviceQueryService _queryService;
 
     public DevicesController(
         DeviceCommandService commandService,
-        DeviceQueryService queryService)
+        IDeviceQueryService queryService)
     {
         _commandService = commandService;
         _queryService = queryService;
@@ -81,7 +82,32 @@ public class DevicesController : ControllerBase
 
         return Ok(resources);
     }
+    [HttpGet("metrics/summary")]
+    public async Task<IActionResult> GetManualDeviceMetricsSummary([FromQuery] int userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { message = "userId es requerido" });
 
+        var manualDevices = await _queryService.Handle(new GetDevicesByUserIdQuery(userId, DeviceType.Manual));
+        var resource = DeviceMetricsSummaryResourceAssembler.ToResourceFromEntities(manualDevices);
+
+        return Ok(resource);
+    }
+    /// <summary>
+    /// Devuelve los labels, datasets y KPIs para graficar dispositivos manuales en el frontend.
+    /// </summary>
+    /// <param name="userId">Identificador del usuario dueño de los dispositivos manuales.</param>
+    [HttpGet("metrics/chart")]
+    public async Task<IActionResult> GetManualDeviceMetricsChart([FromQuery] int userId)
+    {
+        if (userId <= 0)
+            return BadRequest(new { message = "userId es requerido" });
+
+        var manualDevices = await _queryService.Handle(new GetDevicesByUserIdQuery(userId, DeviceType.Manual));
+        var resource = ManualDeviceChartResourceAssembler.ToChartResource(manualDevices);
+
+        return Ok(resource);
+    }
     [HttpGet("{id}")]
     public async Task<IActionResult> GetDeviceById(int id)
     {

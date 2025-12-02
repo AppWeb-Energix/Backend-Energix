@@ -13,5 +13,5 @@ public record DeviceResource(
     DateTime LinkedAt,
     int? ZoneId,
     string? DeviceKind,
-    DeviceMetricsResource? Metrics
+    DeviceMetricsSummaryResource? Metrics
 );
