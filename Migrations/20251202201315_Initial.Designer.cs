@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Energix.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251129053123_Initial")]
+    [Migration("20251202201315_Initial")]
     partial class Initial
     {
         /// <inheritdoc />

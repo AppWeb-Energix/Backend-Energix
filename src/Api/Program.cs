@@ -29,7 +29,7 @@ var configuration = builder.Configuration;
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
                   ?? Environment.GetEnvironmentVariable("DB_CONNECTION")
-                  ?? "server=localhost;port=3306;database=energix;user=root;password=change_me";
+                  ?? "server=localhost;port=3306;database=energix;user=root;password=3xp3ri3nciA*";
 
 Console.WriteLine($"[STARTUP] Conectando a BD: {defaultConn.Replace("password=", "password=***")}");
 
