@@ -20,6 +20,7 @@ using Energix.API.Identity.Infrastructure.Persistence.Repositories;
 using Energix.API.Identity.Infrastructure.Tokens;
 using Energix.API.Identity.Infrastructure.Authorization.Middleware;
 using Energix.API.Personalization.Infrastructure;
+using Energix.API.Profile.Infrastructure;
 using Energix.Subscriptions.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -139,6 +140,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUserCommandService, UserCommandService>();
 builder.Services.AddScoped<IUserQueryService, UserQueryService>();
 builder.Services.AddPersonalizationServices();
+builder.Services.AddProfileServices();
 
 // Device Management
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
