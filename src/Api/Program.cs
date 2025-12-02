@@ -47,6 +47,7 @@ builder.Services.AddCors(options =>
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
+            .AllowCredentials()
             .SetPreflightMaxAge(TimeSpan.FromHours(1));
     });
 });
@@ -149,21 +150,24 @@ app.UseCors(FrontendCorsPolicy);
 // Middleware para asegurar CORS incluso en errores 500
 app.Use(async (ctx, next) =>
 {
-    var origin = ctx.Request.Headers["Origin"].ToString();
+    var origin = ctx.Request.Headers["Origin"]. ToString();
     var allowedOrigins = new[] { "https://frontend-energix.vercel.app", "http://localhost:5173" };
 
-    if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
+    if (! string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
     {
-        ctx.Response.OnStarting(() =>
+        // Aplicar headers CORS inmediatamente
+        ctx.Response. Headers["Access-Control-Allow-Origin"] = origin;
+        ctx.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+        ctx.Response. Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS";
+        ctx. Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept, Origin, X-Requested-With";
+        ctx.Response.Headers["Access-Control-Max-Age"] = "3600";
+
+        // Si es preflight, responder inmediatamente
+        if (ctx. Request.Method == "OPTIONS")
         {
-            if (!ctx.Response.Headers.ContainsKey("Access-Control-Allow-Origin"))
-            {
-                ctx.Response.Headers.Append("Access-Control-Allow-Origin", origin);
-                ctx.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-                ctx.Response.Headers.Append("Access-Control-Allow-Headers", "*");
-            }
-            return Task.CompletedTask;
-        });
+            ctx.Response. StatusCode = 204;
+            return;
+        }
     }
 
     try
@@ -174,12 +178,23 @@ app.Use(async (ctx, next) =>
     {
         Console.WriteLine($"[GLOBAL ERROR] {ex.GetType().Name}: {ex.Message}");
         Console.WriteLine($"[STACK] {ex.StackTrace}");
+        
+        // Asegurar que los headers CORS estén presentes incluso en errores
+        if (! string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
+        {
+            if (!ctx.Response.Headers.ContainsKey("Access-Control-Allow-Origin"))
+            {
+                ctx.Response.Headers["Access-Control-Allow-Origin"] = origin;
+                ctx.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+            }
+        }
+        
         ctx.Response.StatusCode = 500;
-        if (!ctx.Response.HasStarted)
-            await ctx.Response.WriteAsJsonAsync(new { error = ex.Message });
+        ctx.Response.ContentType = "application/json";
+        if (! ctx.Response.HasStarted)
+            await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, message = "Internal server error" });
     }
 });
-
 app.UseAuthentication();
 app.UseUserContext();
 app.UseAuthorization();
