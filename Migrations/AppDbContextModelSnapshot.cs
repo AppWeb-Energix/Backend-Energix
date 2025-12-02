@@ -22,30 +22,6 @@ namespace Energix.API.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("Energix.API.AdminManagement.Domain.Entities.SimpleAuditLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("message");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("simple_audit_logs", (string)null);
-                });
-
             modelBuilder.Entity("Energix.API.DeviceManagement.Domain.Model.Aggregates.Device", b =>
                 {
                     b.Property<int>("Id")
@@ -191,13 +167,6 @@ namespace Energix.API.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)")
                         .HasColumnName("password_hash");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("varchar(20)")
-                        .HasDefaultValue("Customer")
-                        .HasColumnName("role");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)")
@@ -403,7 +372,7 @@ namespace Energix.API.Migrations
 
                             b1.HasKey("DeviceId");
 
-                            b1.ToTable("devices");
+                            b1.ToTable("devices", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("DeviceId");
@@ -429,7 +398,7 @@ namespace Energix.API.Migrations
 
                             b1.HasKey("PaymentMethodId");
 
-                            b1.ToTable("PaymentMethods");
+                            b1.ToTable("PaymentMethods", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("PaymentMethodId");
@@ -448,7 +417,7 @@ namespace Energix.API.Migrations
 
                             b1.HasKey("PaymentMethodId");
 
-                            b1.ToTable("PaymentMethods");
+                            b1.ToTable("PaymentMethods", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("PaymentMethodId");
@@ -480,7 +449,7 @@ namespace Energix.API.Migrations
 
                             b1.HasKey("SubscriptionId");
 
-                            b1.ToTable("Subscriptions");
+                            b1.ToTable("Subscriptions", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("SubscriptionId");

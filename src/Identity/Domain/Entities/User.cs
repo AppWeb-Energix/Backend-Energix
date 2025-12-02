@@ -13,7 +13,6 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public string Dni { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
-    public string Role { get; set; } = "Customer";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 }

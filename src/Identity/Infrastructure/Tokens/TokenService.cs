@@ -19,19 +19,6 @@ public class TokenService : ITokenService
         _settings = settings.Value;
     }
 
-    public string GenerateToken(int userId, string email, string username, string role)
-    {
-        var claims = new List<Claim>
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, email),
-            new Claim("username", username),
-            new Claim(ClaimTypes.Role, role),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-        };
-
-        return GenerateToken(claims);
-    }
 
     public string GenerateToken(int userId, string email, string username, string? planType, string? billingPeriod, bool planSelectionPending)
     {

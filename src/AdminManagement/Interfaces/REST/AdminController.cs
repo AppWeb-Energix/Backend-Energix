@@ -10,7 +10,7 @@ namespace Energix.API.AdminManagement.Interfaces.REST;
 /// </summary>
 [ApiController]
 [Route("api/v1/admin")]
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class AdminController : ControllerBase
 {
     private readonly SystemHealthService _healthService;

@@ -32,7 +32,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="src\AdminManagement\Application\DTOs\" />
       <Folder Include="src\AdminManagement\Infrastructure\Persistence\EFC\Configuration\Extensions\" />
     </ItemGroup>
 
