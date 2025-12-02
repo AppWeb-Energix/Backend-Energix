@@ -1,5 +1,7 @@
 ﻿using Energix.API.DeviceManagement.Domain.Model.Aggregates;
+using Energix.API.DeviceManagement.Domain.Model.Commands;
 using Energix.API.DeviceManagement.Domain.Model.Commands.Devices;
+using Energix.API.DeviceManagement.Domain.Model.ValueObjects;
 
 namespace Energix.API.DeviceManagement.Domain.Services;
 
@@ -9,9 +11,9 @@ namespace Energix.API.DeviceManagement.Domain.Services;
 public interface IDeviceCommandService
 {
     /// <summary>
-    /// Handle creating a new device
+    /// Handle creating a new device with plan validation
     /// </summary>
-    Task<Device> Handle(CreateDeviceCommand command);
+    Task<CommandResult<Device>> Handle(CreateDeviceCommand command, PlanType userPlan);
     
     /// <summary>
     /// Handle updating an existing device

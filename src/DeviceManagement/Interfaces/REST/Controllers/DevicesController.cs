@@ -1,9 +1,5 @@
 ﻿using System.Security.Claims;
-using Energix.API.DeviceManagement.Application.Internal.CommandServices;
-using Energix.API.DeviceManagement.Application.Internal.QueryServices;
-using Energix.API.DeviceManagement.Domain.Model.Commands;
 using Energix.API.DeviceManagement.Domain.Model.Commands.Devices;
-using Energix.API.DeviceManagement.Domain.Model.Queries;
 using Energix.API.DeviceManagement.Domain.Model.Queries.Devices;
 using Energix.API.DeviceManagement.Domain.Model.ValueObjects;
 using Energix.API.DeviceManagement.Domain.Services;
@@ -50,6 +46,39 @@ public class DevicesController : ControllerBase
 
         Console.WriteLine($"✅ UserId extraído del token: {userId}");
         return userId;
+    }
+
+    /// <summary>
+    /// Extrae el PlanType desde el token JWT del usuario autenticado
+    /// Lee claim "planType" con valores esperados: Basic, Student, FamilyPremium
+    /// Mapea a PlanType interno: Basic, Student, Family
+    /// </summary>
+    private PlanType GetPlanFromToken()
+    {
+        var planTypeClaim = User.FindFirst("planType");
+
+        if (planTypeClaim == null || string.IsNullOrWhiteSpace(planTypeClaim.Value))
+        {
+            Console.WriteLine($"⚠️ Claim 'planType' no encontrado en token, usando fallback: PlanType.Basic");
+            return PlanType.Basic;
+        }
+
+        try
+        {
+            // Mapear valores del JWT al enum interno
+            var planTypeValue = planTypeClaim.Value;
+            Console.WriteLine($"📋 PlanType claim value: {planTypeValue}");
+
+            var planType = PlanTypeExtensions.ParsePlanType(planTypeValue);
+            Console.WriteLine($"✅ PlanType mapeado: {planType}");
+            
+            return planType;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Error al parsear planType '{planTypeClaim.Value}': {ex.Message}. Usando fallback: PlanType.Basic");
+            return PlanType.Basic;
+        }
     }
 
     /// <summary>
@@ -164,7 +193,7 @@ public class DevicesController : ControllerBase
 
     /// <summary>
     /// Crea un nuevo dispositivo para el usuario autenticado
-    /// El userId se extrae del JWT - NO debe enviarse en el body
+    /// El userId y planType se extraen del JWT - NO deben enviarse en el body
     /// </summary>
     [HttpPost]
     public async Task<IActionResult> CreateDevice([FromBody] CreateDeviceResource resource)
@@ -172,19 +201,27 @@ public class DevicesController : ControllerBase
         try
         {
             var userId = GetUserIdFromToken();
+            var userPlan = GetPlanFromToken();
 
             Console.WriteLine($"[DEVICES] 🔐 UserId desde JWT: {userId}");
+            Console.WriteLine($"[DEVICES] 📋 PlanType desde JWT: {userPlan}");
             Console.WriteLine($"[DEVICES] 📝 Device Type: {resource.Type}");
             Console.WriteLine($"[DEVICES] 📝 Device Name: {resource.Name}");
 
-            // ✅ El userId del JWT se pasa al comando
+            // ✅ El userId del JWT se pasa al comando, y el userPlan al servicio
             var command = CreateDeviceCommandFromResourceAssembler.ToCommandFromResource(resource, userId);
-            var device = await _commandService.Handle(command);
+            var result = await _commandService.Handle(command, userPlan);
 
-            Console.WriteLine($"[DEVICES] ✅ Device creado exitosamente. ID: {device.Id}");
+            if (!result.Success)
+            {
+                Console.WriteLine($"[DEVICES] ❌ Error al crear dispositivo: {result.ErrorMessage}");
+                return BadRequest(new { message = result.ErrorMessage });
+            }
 
-            var deviceResource = DeviceResourceFromEntityAssembler.ToResourceFromEntity(device);
-            return CreatedAtAction(nameof(GetDeviceById), new { id = device.Id }, deviceResource);
+            Console.WriteLine($"[DEVICES] ✅ Device creado exitosamente. ID: {result.Data!.Id}");
+
+            var deviceResource = DeviceResourceFromEntityAssembler.ToResourceFromEntity(result.Data!);
+            return CreatedAtAction(nameof(GetDeviceById), new { id = result.Data!.Id }, deviceResource);
         }
         catch (UnauthorizedAccessException ex)
         {

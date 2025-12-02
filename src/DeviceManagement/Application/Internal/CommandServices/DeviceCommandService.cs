@@ -324,19 +324,6 @@ namespace Energix.API.DeviceManagement.Application.Internal.CommandServices
 
         // Interface implementation methods (simple wrappers)
 
-        /// <summary>
-        /// Handle creating a device (without plan parameter for interface)
-        /// </summary>
-        async Task<Device> IDeviceCommandService.Handle(CreateDeviceCommand command)
-        {
-            // Default to Basic plan if not specified - should be overridden by controller
-            var result = await Handle(command, PlanType.Basic);
-            if (!result.Success)
-            {
-                throw new InvalidOperationException(result.ErrorMessage ?? "Error desconocido al crear dispositivo");
-            }
-            return result.Data!;
-        }
 
         /// <summary>
         /// Handle updating a device (without plan parameter for interface)
