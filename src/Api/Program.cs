@@ -1,3 +1,4 @@
+// Program.cs
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +27,6 @@ var configuration = builder.Configuration;
 // DB (MySQL)
 var defaultConn = configuration.GetConnectionString("DefaultConnection")
                   ?? configuration["ConnectionStrings:DefaultConnection"]
-                  ?? Environment.GetEnvironmentVariable("DB_CONNECTION")
                   ?? "server=localhost;port=3306;database=energix;user=root;password=change_me";
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(defaultConn, ServerVersion.AutoDetect(defaultConn)));
@@ -37,14 +37,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.WithOrigins(
-                "https://frontend-energix.vercel.app",
-                "http://localhost:5173"
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .SetPreflightMaxAge(TimeSpan.FromHours(1));
-        // .AllowCredentials(); // Solo si usas cookies
+        var origins = new[]
+        {
+            "https://frontend-energix.vercel.app",
+            "https://backend-energix.onrender.com",
+            "http://localhost:5173"
+        };
+        policy.WithOrigins(origins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+        // Si necesitas cookies/JWT en navegador: agregar .AllowCredentials()
     });
 });
 
@@ -140,33 +142,15 @@ else
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Energix API v1"));
+    app.UseExceptionHandler("/error");
 }
 
-// HTTPS
 var hasHttpsPort = app.Configuration["ASPNETCORE_URLS"]?.Contains("https://") == true;
 if (hasHttpsPort)
     app.UseHttpsRedirection();
 
 app.UseRouting();
 app.UseCors(FrontendCorsPolicy);
-
-// Manejo simple de errores asegurando CORS
-app.Use(async (ctx, next) =>
-{
-    try
-    {
-        await next();
-        if (ctx.Response.StatusCode == 404 && !ctx.Response.HasStarted)
-            await ctx.Response.WriteAsJsonAsync(new { error = "Recurso no encontrado" });
-    }
-    catch (Exception ex)
-    {
-        ctx.Response.StatusCode = 500;
-        if (!ctx.Response.HasStarted)
-            await ctx.Response.WriteAsJsonAsync(new { error = ex.Message });
-    }
-});
-
 app.UseAuthentication();
 app.UseUserContext();
 app.UseAuthorization();
@@ -202,12 +186,12 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AppDbContext>();
         context.Database.Migrate();
-        Console.WriteLine("Migraciones aplicadas.");
+        Console.WriteLine("✅ Migraciones aplicadas.");
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Error al migrar la base de datos.");
+        logger.LogError(ex, "❌ Error al migrar la base de datos.");
     }
 }
 
